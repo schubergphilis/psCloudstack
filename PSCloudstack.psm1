@@ -294,7 +294,7 @@ param([parameter(Mandatory=$true)][string]$Server,
     # ----------------------------------------------------------------------------------------------------------------------
     Write-Verbose "Verifying Cloudstack api details"
     $api = $cfg.Configuration.api
-    [xml]$apiList = (Invoke-CSApiCall listApis -Format XML -UseUnsecure)
+    [xml]$apiList = (Invoke-CSApiCall listApis -Format XML)
     $apiVersion =  $apiList.listapisresponse.'cloud-stack-version'
     if ($api.Version -ne $apiVersion) { $api.Version = $apiVersion }
     $apiCount   = $apiList.listapisresponse.count
