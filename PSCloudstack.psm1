@@ -35,6 +35,7 @@ function Set-CSConfig {
   None
     
  .Notes
+    psCloudstack   : V1.2
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -96,6 +97,7 @@ function Get-CSConfig {
       - Count            The number of available api calls in that version
     
  .Notes
+    psCloudstack   : V1.2
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -196,6 +198,7 @@ function Initialize-CSConfig {
   None
     
  .Notes
+    psCloudstack   : V1.2
     Function Name  : Initialize-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -357,6 +360,7 @@ function Invoke-CSApiCall {
    An object which contains all content output returned by the api call in the requested format
     
  .Notes
+    psCloudstack   : V1.2
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -485,32 +489,34 @@ function Connect-CSManager {
   All available Cloudstack api calls as PowerShell functions
     
  .Notes
+    psCloudstack   : V1.2
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V2
 
 #>
 [CmdletBinding()]
-param()
+param([switch]$Silent)
     $bndPrm = $PSCmdlet.MyInvocation.BoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
     # ==========================================================================================================================
     #   The api parameter types differ in name from the Powershell types. Create a translation table to deal with this
     #   Beware: The unix date format yyyy-MM-dd has no counterpart in Powershell, therefore its replaced by type string
-    #
-    #   Obsolete: All parameter values as handeled as strings, it does not matter for the actual api call querystring
     # --------------------------------------------------------------------------------------------------------------------------
-    $trnTbl  = @{ "boolean" = "bool"   ; "date"  = "string" ; "integer" = "int32"  ; "list" = "string[]" ; "long"   = "int64" ;
-                  "map"     = "string" ; "short" = "int16"  ; "string"  = "string" ; "uuid" = "string"   ; "tzdate" = "string" }
+    $trnTable  = @{ "boolean" = "switch" ; "date"  = "string" ; "integer" = "int32"  ; "list" = "string[]" ; "long"   = "int64" ;
+                    "map"     = "string" ; "short" = "int16"  ; "string"  = "string" ; "uuid" = "string"   ; "tzdate" = "string" }
     # ==========================================================================================================================
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # --------------------------------------------------------------------------------------------------------------------------
-    Write-Verbose "Generating api functions......"
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V1.2" -NoNewLine }
+    Write-Verbose "Collecting api function details......"
     $Connect = Get-CSConfig -ShowKeys
     $apiVersion = $Connect.Version
     $laRSP = (Invoke-CSApiCall listApis).listapisresponse
     if ($apiVersion -ne $laRSP.'cloud-stack-version') { Write-Warning "Cloudstack version mismatch. Stored: $apiversion, Active: $($laRSP.'cloud-stack-version')" }
+    if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you" }
+    Write-Verbose "Generating $($laRSP.Count) api functions......"
     $apiCnt = 0
     foreach ($api in $laRSP.api)
     {
@@ -537,25 +543,32 @@ function global:$apiName {
     Asynch: $($api.isasync)
     
 "@
+        # ----------------------------------------------------------------------------------------------------------------------
+        #  Build a neatly formatted list of parameters, make sure mandatory and type settings are correct
+        #  Upper-case the 1st character of each parameter (just for the looks) and do not forget to revert this
+        #  before building the api call.
+        # ----------------------------------------------------------------------------------------------------------------------
         foreach ($prm in ($api.params|sort name -unique))
         {
             $apiFunction += " .Parameter {0}`r`n     {1}`r`n" -f $prm.name,$prm.description
-            $prmList += ("`${0}," -f $prm.name)
+            $prmName = ($prm.name).Replace(($prm.name[0]),($prm.name[0].ToString().ToUpper()))
+            $prmRequired = ($prm.required -eq "true"); $prmType = $trnTable["$($prm.type)"]
+            $prmList += ("[Parameter(Mandatory=`${0})][{1}]`${2},`r`n      " -f $prmRequired,$prmType,$prmName)
         }
-        
         if ($asyncApi)
         {
             $apiFunction += " .Parameter NoWait`r`n     Do not wait for the job to complete. Return the jobid immediate after starting the job`r`n"
             $apiFunction += " .Parameter Wait`r`n     Wait for the job to complete (Default: Wait for ever). If the job does not complete within the specified time return the jobid, else return the actual job completion details`r`n"
-            $prmList += "[switch]`$NoWait,[int]`$Wait"
+            $prmList += "[Parameter(Mandatory=`$false)][switch]`$NoWait,`r`n      [Parameter(Mandatory=`$false)][int32]`$Wait,`r`n      "
         }
-        if ($prmList -ne "") { $prmList = $prmList.TrimEnd(",") }
+        if ($prmList -ne "") { $prmList = $prmList.TrimEnd(",`r`n      ") }
         $apiFunction += "`r`n .Outputs`r`n  System.Object      The returned object contains all api information stored as NoteProperties`r`n"
         foreach ($rsp in $api.response|sort name) { $apiFunction += "     {0,-25}{1}`r`n" -f $rsp.name,$rsp.description }
         $apiFunction +=
 @"
 
  .Notes
+    psCloudstack   : V1.2
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -571,7 +584,10 @@ param($prmList)
     #  Local & Global variables
     # ----------------------------------------------------------------------------------------------------------------------
     [string[]]`$Parameters = `$null
+    `$doDebug   = (`$DebugPreference   -eq "Continue")
     `$doVerbose = (`$VerbosePreference -eq "Continue")
+    `$boundParameters = `$PSCmdlet.MyInvocation.BoundParameters
+    `$skipList = "Debug","ErrorAction","ErrorVariable","OutVariable","OutBuffer","PipelineVariable","Verbose","WarningAction","WarningVariable"
     # ======================================================================================================================
     #  Verify build and current config. Reload psCloudstack if there is no match
     # ----------------------------------------------------------------------------------------------------------------------
@@ -585,28 +601,28 @@ param($prmList)
         Return
     }
     # ======================================================================================================================
-    #  Build the api call and issue it
+    #  Build the api call and issue it. During the function build all parameter names got capitalized, revert this
+    #  to prevent "unable to verify user credentials and/or request signature" errors. Common parameters are skipped!
     # ----------------------------------------------------------------------------------------------------------------------
-
-"@
-        if ($prmCount -gt 0)
-        {
-            $apiFunction +=
-@"
-    foreach (`$prm in "$prmNames".split())
+    foreach (`$prmName in `$boundParameters.Keys)
     {
-        try { `$val = (gv `$prm).value.ToString() }
-        catch { `$val = "-1" }
-        if ((`$val -eq `$null) -or (`$val -eq "")) { `$val = "-1" }
-        if (`$val -ne "-1") { [string[]]`$Parameters += "`$prm=`$val" }
-    }
-    `$apiResponse = Invoke-CSApiCAll $apiName `$Parameters -Verbose:`$doVerbose
-
-"@
+        if (`$skipList.Contains(`$prmName)) { continue }
+        `$prmValue = `$boundParameters["`$prmName"]
+        `$prmType  = (`$boundParameters["`$prmName"]).GetType().Name
+        `$prmName  = `$prmName.ToLower()
+        switch (`$prmType)
+        {
+            "string"            { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
+            "string[]"          { [string[]]`$Parameters += "`$prmName=`$(`$prmValue -join ",")" ; break }
+            "Int16"             { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
+            "Int32"             { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
+            "Int64"             { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
+            "Boolean"           { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
+            "SwitchParameter"   { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
+            default             { Write-Warning "Cannot process [`$prmType]`$prmName" ; break }
         }
-        else { $apiFunction += "    `$apiResponse = Invoke-CSApiCAll $apiName -Verbose:`$doVerbose`r`n" }
-        $apiFunction +=
-@"
+    }
+    `$apiResponse = Invoke-CSApiCAll $apiName `$Parameters -Verbose:`$doVerbose -Debug:`$doDebug
     # ======================================================================================================================
     #  Take the api response and assign the returned values to the output system.object
     # ----------------------------------------------------------------------------------------------------------------------
@@ -645,5 +661,6 @@ param($prmList)
     #  Function code is ready, use Invoke-Expression to 'activate' the function 
     # ----------------------------------------------------------------------------------------------------------------------
     iex $apiFunction
+    #if ($apiCnt -eq 2) {  Write-Output $apiFunction; break }
     }
 }

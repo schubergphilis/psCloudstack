@@ -17,7 +17,7 @@ working you can use the following scenario:
   - Initialize-CSConfig  ---    Create/Update a psCloudstack configuration file and make it active
   - Get-CSConfig         ---    Evaluate the active psCloudstack configuration file
   - Connect-CSManager    ---    Build all entitled api functions  
-From this moment on you can use the api functions. See the remainder of this file and Examples.md for additional information.
+From this moment on you can use the api functions. See the remainder of this file and CHANGES and EXAMPLES for additional information.
 
 
 #####1. Initialize-CSConfig#####

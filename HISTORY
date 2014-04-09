@@ -1,0 +1,32 @@
+#Change History#
+
+####V1.1####
+April 4, 2014 - psCloudstack V1.1 was presented to a group of enthusiastic colleagues. As a result this version is now published on GitHub.com
+There are still a couple of ToDo items and they will be taken care of in good time (or sooner if possible/required)
+
+####V1.2####
+April 9, 2014 - Connect-CSManager (the base function which builds all the api functions) had a shortcoming, all api function parameters were handled as strings. 
+This is no problem for the actual api call since that's string oriented anyway (web request url). What might be considered a problem is the PowerShell parameter 
+handling of the api functions, everything got handled as if it were a string, even integers, booleans, etc.  
+Connect-CSManager now creates a better (formatted) list of api function parameters, including mandatory and type settings. The following 'translation' 
+table is used to convert the 'Unix types' to 'PowerShell types'
+
+         | --------- | -------- |     | --------- | -------- |
+         | Unix type | PS type  |     | Unix type | PS type  |
+         | --------- | -------- |     | --------- | -------- |
+         | boolean   | switch   |     | map       | string   |
+         | date      | string   |     | short     | int16    |
+         | integer   | int32    |     | string    | string   |
+         | list      | string[] |     | uuid      | string   |
+         | long      | int64    |     | tzdate    | string   |
+         | --------- | -------- |     | --------- | -------- |
+
+In psCloudstack the Cloudstack api boolean is replaced by a PowerShell switch parameter which takes no value at all.
+This means that; false is not specified and true when specified
+
+A welcome message has been added to Connect-CSManager, if you find it annoying use -Silent to suppress it.
+
+
+
+Kind Regards,
+Hans van Veen
