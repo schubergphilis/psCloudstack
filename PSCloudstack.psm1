@@ -545,15 +545,12 @@ function global:$apiName {
 "@
         # ----------------------------------------------------------------------------------------------------------------------
         #  Build a neatly formatted list of parameters, make sure mandatory and type settings are correct
-        #  Upper-case the 1st character of each parameter (just for the looks) and do not forget to revert this
-        #  before building the api call.
         # ----------------------------------------------------------------------------------------------------------------------
         foreach ($prm in ($api.params|sort name -unique))
         {
             $apiFunction += " .Parameter {0}`r`n     {1}`r`n" -f $prm.name,$prm.description
-            $prmName = ($prm.name).Replace(($prm.name[0]),($prm.name[0].ToString().ToUpper()))
             $prmRequired = ($prm.required -eq "true"); $prmType = $trnTable["$($prm.type)"]
-            $prmList += ("[Parameter(Mandatory=`${0})][{1}]`${2},`r`n      " -f $prmRequired,$prmType,$prmName)
+            $prmList += ("[Parameter(Mandatory=`${0})][{1}]`${2},`r`n      " -f $prmRequired,$prmType,$prm.name)
         }
         if ($asyncApi)
         {
@@ -601,15 +598,13 @@ param($prmList)
         Return
     }
     # ======================================================================================================================
-    #  Build the api call and issue it. During the function build all parameter names got capitalized, revert this
-    #  to prevent "unable to verify user credentials and/or request signature" errors. Common parameters are skipped!
+    #  Build the api call and issue it. Common parameters are skipped!
     # ----------------------------------------------------------------------------------------------------------------------
     foreach (`$prmName in `$boundParameters.Keys)
     {
         if (`$skipList.Contains(`$prmName)) { continue }
         `$prmValue = `$boundParameters["`$prmName"]
         `$prmType  = (`$boundParameters["`$prmName"]).GetType().Name
-        `$prmName  = `$prmName.ToLower()
         switch (`$prmType)
         {
             "string"            { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
