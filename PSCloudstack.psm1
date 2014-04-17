@@ -21,21 +21,20 @@
 function Set-CSConfig {
 <# 
  .Synopsis
-  Set the CSCONFIGFILE environment variable
+    Set the CSCONFIGFILE environment variable
 
  .Description
-  Set the CSCONFIGFILE environment variable to the specified or default value, but only if that file exists.
-  This environment variable then specifies the active configuration and connection settings.
+    Set the CSCONFIGFILE environment variable to the specified or default value, but only if that file exists.
+    This environment variable then specifies the active configuration and connection settings.
 
- .Inputs
-  ConfigFile
-      The path and name of a config file to store as %CSCONFIGFILE%.
+ .Parameter ConfigFile
+    The path and name of a config file to store as %CSCONFIGFILE%.
 
  .Outputs
-  None
+    None
     
  .Notes
-    psCloudstack   : V1.2
+    psCloudstack   : V2.0
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -66,38 +65,37 @@ param([parameter(Mandatory=$true)][string]$ConfigFile)
 function Get-CSConfig {
 <# 
  .Synopsis
-  Gets the configuration and connection settings from the active configuration file.
+    Gets the configuration and connection settings from the active configuration file.
 
  .Description
-  This function gets the configuration and connection settings from the active config file. This config file, which has
-  been created with Initialize-CSConfig and/or set to active with Set-CSConfig, contains the required connection info for
-  connecting to the Cloudstack Management server, either via the authenticated or unauthenticated port.
+    This function gets the configuration and connection settings from the active config file. This config file, which has
+    been created with Initialize-CSConfig and/or set to active with Set-CSConfig, contains the required connection info for
+    connecting to the Cloudstack Management server, either via the authenticated or unauthenticated port.
 
-  If no configuration file is specified, the value of %CSCONFIGFILE% will be used. And if that environment varaiable does
-  not exist %LOCALAPPDATA%\psCloudstack.config will be used.
+    If no configuration file is specified, the value of %CSCONFIGFILE% will be used. And if that environment varaiable does
+    not exist %LOCALAPPDATA%\psCloudstack.config will be used.
   
- .Inputs
-  ConfigFile
-      The path and name of a config file which contains the configuration and connection settings.
+ .Parameter ConfigFile
+    The path and name of a config file which contains the configuration and connection settings.
       
-  ShowKeys
-      Show the API & Secret key in the output object.
+ .Parameter ShowKeys
+    Show the API & Secret key in the output object.
 
  .Outputs
   System.Object
-      A System.Object which contains all collected settings.
-      - File             The active configurationfile
-      - Server           The server to connect to
-      - UseSSL           Use https for connecting
-      - SecurePort       The secure port number
-      - UnsecurePort     The unsecure port number
-      - Api              The user api key (when requested)
-      - Key              The user secret key (when requested)
-      - Version          The LAST used cloudstack version!
-      - Count            The number of available api calls in that version
+    A System.Object which contains all collected settings.
+    - File             The active configurationfile
+    - Server           The server to connect to
+    - UseSSL           Use https for connecting
+    - SecurePort       The secure port number
+    - UnsecurePort     The unsecure port number
+    - Api              The user api key (when requested)
+    - Key              The user secret key (when requested)
+    - Version          The LAST used cloudstack version!
+    - Count            The number of available api calls in that version
     
  .Notes
-    psCloudstack   : V1.2
+    psCloudstack   : V2.0
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -138,6 +136,7 @@ param([string]$ConfigFile,[switch]$ShowKeys)
         .$addNote Api      $Connect.authentication.api
         .$addNote Key      $Connect.authentication.key
     }
+    .$addNote CommandStyle $Connect.command.style
     .$addNote Version      $Api.version
     .$addNote Count        $Api.count
     # ======================================================================================================================
@@ -154,69 +153,74 @@ param([string]$ConfigFile,[switch]$ShowKeys)
 function Initialize-CSConfig {
 <# 
  .Synopsis
-  Creates or updates the config file required to communicate with the Cloudstack management server
+    Creates or updates the config file required to communicate with the Cloudstack management server
 
  .Description
-  This function creates or updates the connection config file. This file (default:
-  %LOCALAPPDATA%\psCloudstack.config) contains the required connection info for communicating with
-  the Cloudstack Management server, either via the authenticated or unauthenticated port.
+    This function creates or updates the connection config file. This file (default:
+    %LOCALAPPDATA%\psCloudstack.config) contains the required connection info for communicating with
+    the Cloudstack Management server, either via the authenticated or unauthenticated port.
 
-  The config file also contains information about the last connection like Cloudstack version,
-  the number of available api's. Only api's the user is entitled to are collected and counted.
+    The config file also contains information about the last connection like Cloudstack version,
+    the number of available api's. Only api's the user is entitled to are collected and counted.
   
- .Inputs
-  Server (required)
-      The name or IP address of the Cloudstack management server. This is a required parameter.
-      If a config file is updated the server IP address will be used to verify the correctness
-      of the existing content
+ .Parameter Server
+    The name or IP address of the Cloudstack management server. This is a required parameter.
+    If a config file is updated the server IP address will be used to verify the correctness
+    of the existing content
 
-  SecurePort
-      The API secure port number. (default: 8080)
+ .Parameter SecurePort
+    The API secure port number.
 
-  UnecurePort
-      The API unsecure port number. (default: 8096)
-      
-  Apikey
-      The users apikey. This key will be, in combination with the users secret key, be converted
-      to a single hash value. This hash value will be stored in the config file.
-      
-  Secret
-      The users secret key. This key will be, in combination with the users api key, be converted
-      to a single hash value. This hash value will be stored in the config file.
+ .Parameter UnsecurePort
+    The API unsecure port number.
 
-  UseSSL
-      Use https when connecting to the Cloudstack management server. Only used when requesting access
-      via the secured port.
+ .Parameter Apikey
+    The users apikey. This key will be, in combination with the users secret key, be converted
+    to a single hash value. This hash value will be stored in the config file.
 
-  Config
-      The path and name of a config file to which the input information is written.
-      By default %LOCALAPPDATA%\psCloudstack.config will be used, but a different file can be specified.
-      The full filespec is also saved in %CSCONFIGFILE% and is used by Get-CSConfig in case the
-      default file cannot be found.
+ .Parameter Secret
+    The users secret key. This key will be, in combination with the users api key, be converted
+    to a single hash value. This hash value will be stored in the config file.
+
+ .Parameter UseSSL
+    Use https when connecting to the Cloudstack management server. Only used when requesting access
+    via the secured port.
+
+ .Parameter CommandStyle
+    CommandStyle can be Windows or Unix and specifies how Cloudstack booleans are treated (default: Windows)
+    Windows style: boolean parameters like listAll are true when specified and not used when not specified
+    Unix style: boolean parameters like listAll must be given a value (true or false)
+
+ .Parameter Config
+    The path and name of a config file to which the input information is written.
+    By default %LOCALAPPDATA%\psCloudstack.config will be used, but a different file can be specified.
+    The full filespec is also saved in %CSCONFIGFILE% and is used by Get-CSConfig in case the
+    default file cannot be found.
 
  .Outputs
-  None
+    None
     
  .Notes
-    psCloudstack   : V1.2
+    psCloudstack   : V2.0
     Function Name  : Initialize-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
 
   .Example
-   # Create/Update the content of the default config file
+    # Create/Update the content of the default config file
 
-   C:\PS> Initialize-CSConfig -Server www.xxx.yyy.zzz -Api xxxxxxx -Secret yyyyyyyyy
+    C:\PS> Initialize-CSConfig -Server www.xxx.yyy.zzz -Api xxxxxxx -Secret yyyyyyyyy
 
 #>
 [CmdletBinding()]
 param([parameter(Mandatory=$true)][string]$Server,
-      [int]$SecurePort=8080,
-      [int]$UnsecurePort=8096,
-      [string]$Apikey,
-      [string]$Secret,
-      [switch]$UseSSL,
-      [string]$ConfigFile=("{0}\psCloudstack.config" -f $env:LocalAppData))
+      [Parameter(Mandatory = $false)][int]$SecurePort=8080,
+      [Parameter(Mandatory = $false)][int]$UnsecurePort=8096,
+      [Parameter(Mandatory = $false)][string]$Apikey,
+      [Parameter(Mandatory = $false)][string]$Secret,
+      [Parameter(Mandatory = $false)][switch]$UseSSL,
+      [Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$CommandStyle="Windows",
+      [Parameter(Mandatory = $false)][string]$ConfigFile=("{0}\psCloudstack.config" -f $env:LocalAppData))
     $bndPrm = $PSCmdlet.MyInvocation.BoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
@@ -248,6 +252,7 @@ param([parameter(Mandatory=$true)][string]$Server,
         Write-Verbose "Update existing Cloudstack config file"
         [xml]$cfg = gc "$ConfigFile"
         $Connect = $cfg.configuration.connect
+        $cfgStyle  = $Connect.command.style
         $cfgServer = $Connect.server.address
         $cfgUseSSL = $Connect.server.usessl
         $cfgSPort  = $Connect.server.secureport
@@ -267,6 +272,7 @@ param([parameter(Mandatory=$true)][string]$Server,
         [xml]$cfg = '<?xml version="1.0" encoding="utf-8"?>
                      <configuration>
                        <connect>
+                         <command style="Windows" />
                          <server address="" secureport="" unsecureport="" usessl="" />
                          <authentication api="" key=""/>
                        </connect>
@@ -281,6 +287,7 @@ param([parameter(Mandatory=$true)][string]$Server,
     #  Update the info and save the file
     # ----------------------------------------------------------------------------------------------------------------------
     $Connect.server.address = $Server
+    if ($cfgStyle -ne $CommandStyle) { $Connect.command.style = $cfgStyle }
     if ($cfgUseSSL -ne $doUseSSL) { $Connect.server.usessl = $doUseSSL }
     if ($cfgSPort -ne $SecurePort.ToString()) { $Connect.server.secureport = $SecurePort.ToString() }
     if ($cfgUPort -ne $UnsecurePort.ToString()) { $Connect.server.unsecureport = $UnsecurePort.ToString() }
@@ -315,52 +322,50 @@ param([parameter(Mandatory=$true)][string]$Server,
 function Invoke-CSApiCall {
 <# 
  .Synopsis
-  Build and issue a valid Cloudstack api call.
+    Build and issue a valid Cloudstack api call.
 
  .Description
-  This function uses the connection info from the config file to build and issue a valid Cloudstack
-  api call. This api call can either be directed to the secure (authentication required) port or the unsecure port.
+    This function uses the connection info from the config file to build and issue a valid Cloudstack
+    api call. This api call can either be directed to the secure (authentication required) port or the unsecure port.
 
- .Inputs
-  Command
-      The api command to issue.
+ .Parameter Command
+    The api command to issue.
 
-  Parameters
-      A comma-separate list of additional api call parameters and values
+ .Parameter Parameters
+    A comma-separate list of additional api call parameters and values
 
-  Format
-      Specifies the reponse output format. By default XML output is returned, the other option is JSON
+ .Parameter Format
+    Specifies the reponse output format. By default XML output is returned, the other option is JSON
 
-  Server
-      The name or IP address of the Cloudstack management server. Using this parameter will override
-      value from the the config 
+ .Parameter Server
+    The name or IP address of the Cloudstack management server. Using this parameter will override
+    value from the the config 
 
-  SecurePort
-      The API secure port number. Using this parameter will override value from the the config
+ .Parameter SecurePort
+    The API secure port number. Using this parameter will override value from the the config
 
-  UnecurePort
-      The API unsecure port number. Using this parameter will override value from the the config
+ .Parameter UnecurePort
+    The API unsecure port number. Using this parameter will override value from the the config
 
-  Apikey
-      The users apikey.  Using this parameter will override value from the the config 
+ .Parameter Apikey
+    The users apikey.  Using this parameter will override value from the the config 
       
-  Secret
-      The users secret key.  Using this parameter will override value from the the config 
+ .Parameter Secret
+    The users secret key.  Using this parameter will override value from the the config 
 
-  UseSSL
-      Use https when connecting to the Cloudstack management server.
-      Only used when requesting access via the secured port.
+ .Parameter UseSSL
+    Use https when connecting to the Cloudstack management server.
+    Only used when requesting access via the secured port.
 
-  UseUnsecure
-      When this switch is specified the api call will be directed to the unsecure port
+ .Parameter UseUnsecure
+    When this switch is specified the api call will be directed to the unsecure port
 
 
  .Outputs
-  XML or JSON object
-   An object which contains all content output returned by the api call in the requested format
+    An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V1.2
+    psCloudstack   : V2.0
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -468,55 +473,94 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
 function Connect-CSManager {
 <# 
  .Synopsis
-  Connect to the requested Cloudstack management server and build the api functions
+    Connect to the requested Cloudstack management server and build the api functions
 
  .Description
-  This function connects to the requested Cloudstack management server and then obtain a list of available
-  api calls. This list will then be converted into 'regular' Powershell functions. These functions will be
-  propagated via the main psCloudstack module.
+    This function connects to the requested Cloudstack management server and then obtain a list of available
+    api calls. This list will then be converted into 'regular' Powershell functions. These functions will be
+    propagated via the main psCloudstack module.
   
-  Functions for async api calls will wait util the api call completed its work, unless:
-    -NoWait has been specified with the function call
-  or
-    -Wait xx has been specified with the function call where xx is the maximum number of seconds to wait
+    Functions for async api calls will wait util the api call completed its work, unless:
+      -NoWait has been specified with the function call
+    or
+      -Wait xx has been specified with the function call where xx is the maximum number of seconds to wait
 
-  When running this function with -Verbose the async api functions will be marked with a (*).
+    When running this function with -Verbose the async api functions will be marked with a (A).
   
- .Inputs
-  None
+ .Parameter CommandStyle
+    CommandStyle can be Windows or Unix and it causes Cloudstack booleans to be processed differently.
+    Windows style: boolean parameters like listAll are true when specified and not used when not specified , no value required.
+    Unix style: boolean parameters like listAll must be given a value (true or false).
+      
+    The style setting can also be specified in the config file!
+
+ .Parameter Silent
+    Suppress the welcome message
 
  .Outputs
-  All available Cloudstack api calls as PowerShell functions
+    All available Cloudstack api calls as PowerShell functions
+
+ .Example
+    # Connect and prepare for windows style api functions
+    C:\PS> Connect-CSManager
+    Welcome to psCloudstack V2.0 - Generating 458 api functions for you (Windows style)
     
- .Notes
-    psCloudstack   : V1.2
+    C:\PS> listUsers -listall
+
+    account             : admin
+    accountid           : f20c65de-74b8-11e3-a3ac-0800273826cf
+    accounttype         : ..........................
+    
+ .Example
+    # Connect and prepare for unix style api functions
+    C:\PS> Connect-CSManager -CommandStyle Unix
+    Welcome to psCloudstack V2.0 - Generating 458 api functions for you (Unix style)
+    
+    C:\PS> listUsers -listall true
+
+    account             : admin
+    accountid           : f20c65de-74b8-11e3-a3ac-0800273826cf
+    accounttype         : ..........................
+    
+    
+  .Notes
+    psCloudstack   : V2.0
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V2
 
 #>
 [CmdletBinding()]
-param([switch]$Silent)
+param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$CommandStyle,[switch]$Silent)
     $bndPrm = $PSCmdlet.MyInvocation.BoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
     # ==========================================================================================================================
-    #   The api parameter types differ in name from the Powershell types. Create a translation table to deal with this
+    #   The api parameter types differ in name from the Powershell types. Create a translation table to deal with this.
+    #   The Windows and Unix command styles only differ on 1 thing: Windows switch is true when specified
     #   Beware: The unix date format yyyy-MM-dd has no counterpart in Powershell, therefore its replaced by type string
     # --------------------------------------------------------------------------------------------------------------------------
     $trnTable  = @{ "boolean" = "switch" ; "date"  = "string" ; "integer" = "int32"  ; "list" = "string[]" ; "long"   = "int64" ;
                     "map"     = "string" ; "short" = "int16"  ; "string"  = "string" ; "uuid" = "string"   ; "tzdate" = "string" }
     # ==========================================================================================================================
-    #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
+    #   Load the config file and determine which command style to use (commandline overrules config, default is Windows)
+    #   When unix is selected, convert the translation table switch type to string.
     # --------------------------------------------------------------------------------------------------------------------------
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V1.2" -NoNewLine }
-    Write-Verbose "Collecting api function details......"
     $Connect = Get-CSConfig -ShowKeys
     $apiVersion = $Connect.Version
+    $cmdStyle = $Connect.command.style
+    if ($CommandStyle.length -gt 0) { $cmdStyle = $CommandStyle }
+    if ($cmdStyle.length -eq 0)     { $cmdStyle ="Windows" }
+    if ($cmdStyle -eq "Unix")       { $trnTable.boolean = "string" }
+    # ==========================================================================================================================
+    #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
+    # --------------------------------------------------------------------------------------------------------------------------
+    Write-Verbose "Collecting api function details......"
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.0" -NoNewLine }
     $laRSP = (Invoke-CSApiCall listApis).listapisresponse
     if ($apiVersion -ne $laRSP.'cloud-stack-version') { Write-Warning "Cloudstack version mismatch. Stored: $apiversion, Active: $($laRSP.'cloud-stack-version')" }
-    if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you" }
-    Write-Verbose "Generating $($laRSP.Count) api functions......"
+    if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you ($cmdStyle style)" }
+    Write-Verbose "Generating $($laRSP.Count) api functions...... ($cmdStyle style)"
     $apiCnt = 0
     foreach ($api in $laRSP.api)
     {
@@ -526,6 +570,8 @@ param([switch]$Silent)
         [string[]]$rspNames = $api.response.name|sort -unique
         $rspCount = $rspNames.Count
         $asyncApi = $($api.isasync) -eq "true"
+        $linkApi = "None"
+        if ($api.related.length -gt 0) { $linkApi  = ($api.related.Split(",")|sort -unique) -join "`r`n- " }
         $asyncMark = ""; if ($asyncApi) { $asyncMark = "(A)" }
         Write-Verbose (" {0:0##} - $apiName {1}" -f $apiCnt,$asyncMark)
         # ----------------------------------------------------------------------------------------------------------------------
@@ -556,26 +602,26 @@ function global:$apiName {
         {
             $apiFunction += " .Parameter NoWait`r`n     Do not wait for the job to complete. Return the jobid immediate after starting the job`r`n"
             $apiFunction += " .Parameter Wait`r`n     Wait for the job to complete (Default: Wait for ever). If the job does not complete within the specified time return the jobid, else return the actual job completion details`r`n"
-            $prmList += "[Parameter(Mandatory=`$false)][switch]`$NoWait,`r`n      [Parameter(Mandatory=`$false)][int32]`$Wait,`r`n      "
+            $prmList += "[Parameter(Mandatory=`$false,ParameterSetName='NoWait')][switch]`$NoWait,`r`n      [Parameter(Mandatory=`$false,ParameterSetName='Wait')][int32]`$Wait=-1,`r`n      "
         }
         if ($prmList -ne "") { $prmList = $prmList.TrimEnd(",`r`n      ") }
-        $apiFunction += "`r`n .Outputs`r`n  System.Object      The returned object contains all api information stored as NoteProperties`r`n"
-        foreach ($rsp in $api.response|sort name) { $apiFunction += "     {0,-25}{1}`r`n" -f $rsp.name,$rsp.description }
+        $apiFunction += "`r`n .Outputs`r`n  System.Object`r`n"
+        foreach ($rsp in $api.response|sort name) { if ($rsp) { $apiFunction += "`r`n  - {0,-25}{1}" -f $rsp.name,$rsp.description } }
         $apiFunction +=
 @"
 
  .Notes
-    psCloudstack   : V1.2
+    psCloudstack   : V2.0
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V2
  
  .Link
     Related functions (aka API calls) are:
-    $($api.related)
+    - $linkApi
 
 #>
-[CmdletBinding(PositionalBinding=`$false)]
+[CmdletBinding(PositionalBinding=`$false, DefaultParameterSetName="$apiName")] 
 param($prmList)
     # ======================================================================================================================
     #  Local & Global variables
@@ -584,7 +630,8 @@ param($prmList)
     `$doDebug   = (`$DebugPreference   -eq "Continue")
     `$doVerbose = (`$VerbosePreference -eq "Continue")
     `$boundParameters = `$PSCmdlet.MyInvocation.BoundParameters
-    `$skipList = "Debug","ErrorAction","ErrorVariable","OutVariable","OutBuffer","PipelineVariable","Verbose","WarningAction","WarningVariable"
+    `$skipList = "Debug","ErrorAction","ErrorVariable","OutVariable","OutBuffer","PipelineVariable","Verbose","WarningAction","WarningVariable","Wait","NoWait"
+    `$asyncApi = "$asyncApi" -eq "True"
     # ======================================================================================================================
     #  Verify build and current config. Reload psCloudstack if there is no match
     # ----------------------------------------------------------------------------------------------------------------------
@@ -598,64 +645,92 @@ param($prmList)
         Return
     }
     # ======================================================================================================================
-    #  Build the api call and issue it. Common parameters are skipped!
+    #  Build the api call and issue it. Non-cloudstack parameters are skipped and list parameter values are joined
     # ----------------------------------------------------------------------------------------------------------------------
     foreach (`$prmName in `$boundParameters.Keys)
     {
         if (`$skipList.Contains(`$prmName)) { continue }
         `$prmValue = `$boundParameters["`$prmName"]
-        `$prmType  = (`$boundParameters["`$prmName"]).GetType().Name
-        switch (`$prmType)
-        {
-            "string"            { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
-            "string[]"          { [string[]]`$Parameters += "`$prmName=`$(`$prmValue -join ",")" ; break }
-            "Int16"             { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
-            "Int32"             { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
-            "Int64"             { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
-            "Boolean"           { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
-            "SwitchParameter"   { [string[]]`$Parameters += "`$prmName=`$prmValue" ; break }
-            default             { Write-Warning "Cannot process [`$prmType]`$prmName" ; break }
-        }
+        [string[]]`$Parameters += "`$prmName=`$(`$prmValue -join ",")"
     }
     `$apiResponse = Invoke-CSApiCAll $apiName `$Parameters -Verbose:`$doVerbose -Debug:`$doDebug
-    # ======================================================================================================================
-    #  Take the api response and assign the returned values to the output system.object
-    # ----------------------------------------------------------------------------------------------------------------------
-    `$rspName    = `$apiResponse.get_LastChild().get_SchemaInfo().localname
-    if (`$apiResponse.`$rspName.get_LastChild() -eq `$null) { Write-Output `$null; return }
-    `$nodeName   = `$apiResponse.`$rspName.get_LastChild().get_SchemaInfo().localname
-    `$rspCount   = `$apiResponse.`$rspName.Count
-    [array]`$rsp = `$apiResponse.`$rspName.`$nodeName
-    try { `$rspType = `$rsp.getTypeCode() }
-    catch
-    {
-        `$rspType = `$null; if (!`$rspCount) { `$rspCount = 1 }
-        for (`$i=0;`$i -lt `$rspCount;`$i++)
+
+"@
+        # ----------------------------------------------------------------------------------------------------------------------
+        #  Code section for asynchronous jobs
+        # ----------------------------------------------------------------------------------------------------------------------
+        if ($asyncApi)
         {
-            `$apiObject  = New-Object -TypeName System.Object
-            `$apiNote = {param(`$n,`$v);Add-Member -InputObject `$apiObject -MemberType NoteProperty -Name `$n -Value `$v -Force}
-            foreach (`$rspName in "$rspNames".split())
-            {
-                try { `$val = `$rsp[`$i].`$rspName }
-                catch [System.Management.Automation.ItemNotFoundException] { `$val = `$null }
-                if (`$val -ne `$null) { .`$apiNote `$rspName `$val }
-            }
-            write-output `$apiObject
-        }
-    }
-    if (`$rspType -ne `$null)
+            $apiFunction +=
+@"
+    # ======================================================================================================================
+    #  Asynchronous job: see whether we have to wait for completion, and if so.... do so.....
+    # ----------------------------------------------------------------------------------------------------------------------
+    `$jobId  = `$apiResponse.selectsinglenode("//jobid")."#text"
+    Write-Verbose "Async job started with id: `$jobId"
+    `$jobResult = (Invoke-CSApiCall queryAsyncJobResult jobid=`$jobId -Verbose:`$false -Debug:`$false).queryasyncjobresultresponse
+    `$jobSts = `$jobResult.jobstatus
+    if (!`$NoWait)
     {
-        `$apiObject  = New-Object -TypeName System.Object
-        Add-Member -InputObject `$apiObject -MemberType NoteProperty -Name `$nodeName -Value `$rsp[0] -Force
-        write-output `$apiObject
+        Write-Host "Waiting for asynchronous job to complete"
+        `$cntDown = `$Wait
+        while ((`$cntDown -ne 0) -and (`$jobSts -eq 0))
+        {
+            Write-Host "." -NoNewLine; Start-Sleep -Sec 1
+            `$jobResult = (Invoke-CSApiCall queryAsyncJobResult jobid=`$jobId -Verbose:`$false -Debug:`$false).queryasyncjobresultresponse
+            `$jobSts = `$jobResult.jobstatus; `$cntDown -= 1
+        }
+        Write-Host ""
+        if (`$cntDown -eq 0) { Write-Warning "Job wait timeout, job is still running" }
     }
+    if (`$jobSts -eq 2)
+    {
+        `$resultCode = `$jobResult.jobresultcode
+        `$errorCode = `$jobResult.jobresult.errorcode
+        `$errorText = `$jobResult.jobresult.errortext
+        Write-Warning "$apiName failed"
+        Write-Warning "Error `$errorCode - `$errorText"
+    }
+    Write-Output `$jobResult
+    return
 }
 
 "@
+        # ----------------------------------------------------------------------------------------------------------------------
+        #  Code section for synchronous jobs
+        # ----------------------------------------------------------------------------------------------------------------------
+        }
+        else
+        {
+            $apiFunction +=
+@"
+    # ======================================================================================================================
+    #  Synchronous job: convert the api response to the output system.object. Skip NULL responses
+    # ----------------------------------------------------------------------------------------------------------------------
+    `$children = `$apiResponse.get_ChildNodes().NextSibling|?{`$_ -ne `$null}
+    `$childCnt = `$children.count
+    Write-verbose "Received `$childCnt response items"
+    foreach (`$child in `$children.get_ChildNodes().NextSibling)
+    {
+        if (`$child -eq `$null) { Continue }
+        `$apiObject  = New-Object -TypeName System.Object
+        `$apiNote = {param(`$n,`$v);Add-Member -InputObject `$apiObject -MemberType NoteProperty -Name `$n -Value `$v -Force}
+        foreach (`$rspName in "$rspNames".split())
+        {
+            try { `$val = `$child.`$rspName }
+            catch [System.Management.Automation.ItemNotFoundException] { `$val = `$null }
+            if (`$val -ne `$null) { .`$apiNote `$rspName `$val }
+        }
+        write-output `$apiObject
+    }
+    return
+}
+
+"@
+        }
     # ----------------------------------------------------------------------------------------------------------------------
     #  Function code is ready, use Invoke-Expression to 'activate' the function 
     # ----------------------------------------------------------------------------------------------------------------------
     iex $apiFunction
-    #if ($apiCnt -eq 2) {  Write-Output $apiFunction; break }
     }
 }

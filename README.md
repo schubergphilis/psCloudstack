@@ -64,32 +64,32 @@ The api name becomes the function name, the api request parameters become the fu
 All this information is pasted into a (Here-String based) **global** function template and than executed via the Invoke-Expression command.
 
 ```
-Connect-CSManager -Verbose
-VERBOSE: Generating api functions......
+PS C:\> Connect-CSManager -Verbose
+VERBOSE: Collecting api function details......
+Welcome to psCloudstack V2.0 - Generating xxx api functions for you (Windows style)
+VERBOSE: Generating xxx api functions...... (Windows style)
 VERBOSE:  001 - listNetworkACLs
 VERBOSE:  002 - reconnectHost (A)
+VERBOSE:  003 - createCondition (A)
+VERBOSE:  004 - copyTemplate (A)
+VERBOSE:  005 - listRouters
+VERBOSE:  006 - listNiciraNvpDeviceNetworks
           ...
           ...
           ...
-VERBOSE:  454 - updateNetworkServiceProvider (A)
-VERBOSE:  455 - listUsers
-VERBOSE:  456 - findStoragePoolsForMigration
-VERBOSE:  457 - listSupportedNetworkServices
-VERBOSE:  458 - listIsos
 ```   
-Functions marked with an (A) use async api calls which only return a job id. This job id can be used as input to     
-*queryAsyncJobResult* and *listAsyncJobs*
+Functions marked with an (A) use async api calls which only return job information which can be used to retrieve information of the the actual request target.
+For example: deployVirtualMachine will return an item named "jobinstanceid", this is the id you can use with listVirtualMachines.
+By default async function will wait for the job to complete, specifying -Wait xxx  will cause the function to wait for max. xxx seconds before returning the
+job details. Use -NoWait if you do not want to wait at all.
+ 
+Connect-CSManager also accepts the -CommandStyle parameter which can be used to select either Windows or Unix type boolean handeling.  
+- Windows style: boolean parameters like listAll are true when specified and not used when not specified , no value required.
+- Unix style: boolean parameters like listAll must be given a value (true or false).
+      
+This option can also be set via the config file, in the <connect> section the line <command style="xxxxxx" /> has been added for this.  
 
-######Work in Progress######
-Two extra (but yet inactive) parameters have been added to functions based upon async api calls: *-Wait [sss]* and *-NoWait*     
-By default, when a async api call is made, the function will wait infinitely for the api call to complete      
-responses.
-*-NoWait*     This will cause the function to return the job id as soon as it becomes available.  
-*-Wait [sss]* The function will wait for max. sss seconds before the result. If the job has not finished yet, the       
-              function will still return the job id. If it has completed the actual api results will be returned.
-By default the function will wait forever for the job to complete
-
-
+ 
 #####5. Invoke-CSApiCall#####
 This function contains the actual api call logic. An Cloudstack api call has to be formatted in a specific way and      
 signed using the users api & secret key. This process is described in detail in the "Cloudstack API Developer's Guide"      
