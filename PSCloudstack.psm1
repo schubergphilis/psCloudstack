@@ -34,7 +34,7 @@ function Set-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.0
+    psCloudstack   : V2.0.1
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -42,7 +42,7 @@ function Set-CSConfig {
 #>
 [CmdletBinding()]
 param([parameter(Mandatory=$true)][string]$ConfigFile)
-    $bndPrm = $PSCmdlet.MyInvocation.BoundParameters
+    $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
     # ======================================================================================================================
@@ -65,7 +65,7 @@ param([parameter(Mandatory=$true)][string]$ConfigFile)
 function Get-CSConfig {
 <# 
  .Synopsis
-    Gets the configuration and connection settings from the active configuration file.
+    Get the configuration and connection settings from the active or requested configuration file.
 
  .Description
     This function gets the configuration and connection settings from the active config file. This config file, which has
@@ -91,11 +91,12 @@ function Get-CSConfig {
     - UnsecurePort     The unsecure port number
     - Api              The user api key (when requested)
     - Key              The user secret key (when requested)
-    - Version          The LAST used cloudstack version!
+    - CommandStyle     Use Windows or Unix style commands
+    - Version          The LAST seen cloudstack version!
     - Count            The number of available api calls in that version
     
  .Notes
-    psCloudstack   : V2.0
+    psCloudstack   : V2.0.1
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -103,7 +104,7 @@ function Get-CSConfig {
 #>
 [CmdletBinding()]
 param([string]$ConfigFile,[switch]$ShowKeys)
-    $bndPrm = $PSCmdlet.MyInvocation.BoundParameters
+    $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
     # ======================================================================================================================
@@ -117,8 +118,6 @@ param([string]$ConfigFile,[switch]$ShowKeys)
     if  ($ConfigFile -eq "") { $ConfigFile = $env:CSCONFIGFILE }
     if  ($ConfigFile -eq "") { $ConfigFile = "{0}\psCloudstack.config" -f $env:LocalAppData }
     if (($ConfigFile -eq "") -or !(Test-Path "$ConfigFile")) { throw "No psCloudstack configuration file found" }
-    Write-Verbose "Using config: $ConfigFile"
-    Set-CSConfig "$ConfigFile"
     # ======================================================================================================================
     #  Read the config file connect details and store them in the connect object
     # ----------------------------------------------------------------------------------------------------------------------
@@ -201,7 +200,7 @@ function Initialize-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.0
+    psCloudstack   : V2.0.1
     Function Name  : Initialize-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -221,7 +220,7 @@ param([parameter(Mandatory=$true)][string]$Server,
       [Parameter(Mandatory = $false)][switch]$UseSSL,
       [Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$CommandStyle="Windows",
       [Parameter(Mandatory = $false)][string]$ConfigFile=("{0}\psCloudstack.config" -f $env:LocalAppData))
-    $bndPrm = $PSCmdlet.MyInvocation.BoundParameters
+    $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
     # ======================================================================================================================
@@ -230,6 +229,19 @@ param([parameter(Mandatory=$true)][string]$Server,
     $doUpdate = $false; $doUseSSL = ($UseSSL -and $true).ToString().ToLower()
     $sysPing = New-Object System.Net.NetworkInformation.Ping
     $ipRegex = "^\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b$"
+    # ======================================================================================================================
+    #  Create an empty xml template to be used as 'staging' area for an existing config or as source for a new config
+    # ----------------------------------------------------------------------------------------------------------------------
+    [xml]$newCfg = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
+                    <configuration version=`"2.0`">
+                      <connect>
+                        <command style=`"$CommandStyle`" />
+                        <server address=`"`" secureport=`"$SecurePort`" unsecureport=`"$UnsecurePort`" usessl=`"true`" />
+                        <authentication api=`"`" key=`"`"/>
+                      </connect>
+                      <api version=`"`" count=`"`" />
+                    </configuration>"
+    $newConnect = $newCfg.configuration.connect
     # ======================================================================================================================
     #  Verify the server by getting the server IP address. Try DNS lookup and if that fails try Ping
     # ----------------------------------------------------------------------------------------------------------------------
@@ -245,75 +257,46 @@ param([parameter(Mandatory=$true)][string]$Server,
     }
     if ($ServerIP -NotMatch $ipRegex) { throw "Cannot convert $Server to an IP address" }
     # ======================================================================================================================
-    #  Check the config file. If it exists update the connection information therein
+    #  Check the config file. If it exists update the new config template with its information
     # ----------------------------------------------------------------------------------------------------------------------
     if (Test-Path "$ConfigFile")
     {
         Write-Verbose "Update existing Cloudstack config file"
-        [xml]$cfg = gc "$ConfigFile"
-        $Connect = $cfg.configuration.connect
-        $cfgStyle  = $Connect.command.style
-        $cfgServer = $Connect.server.address
-        $cfgUseSSL = $Connect.server.usessl
-        $cfgSPort  = $Connect.server.secureport
-        $cfgUPort  = $Connect.server.unsecureport
-        $cfgApi    = $Connect.authentication.api
-        $cfgKey    = $Connect.authentication.key
-        if (!$Apikey) { $Apikey = $cfgApi }
-        if (!$Secret) { $Secret = $cfgKey }
+        [xml]$curCfg = gc "$ConfigFile"        
+        $curConnect = $curCfg.configuration.connect
+        if ($curConnect.command.style.length -gt 0)       { $newConnect.command.style       = $curConnect.command.style }
+        if ($curConnect.server.address.length -gt 0)      { $newConnect.server.address      = $curConnect.server.address }
+        if ($curConnect.server.usessl.length -gt 0)       { $newConnect.server.usessl       = $curConnect.server.usessl }
+        if ($curConnect.server.secureport.length -gt 0)   { $newConnect.server.secureport   = $curConnect.server.secureport }
+        if ($curConnect.server.unsecureport.length -gt 0) { $newConnect.server.unsecureport = $curConnect.server.unsecureport }
+        if ($curConnect.authentication.api.length -gt 0)  { $newConnect.authentication.api  = $curConnect.authentication.api }
+        if ($curConnect.authentication.key.length -gt 0)  { $newConnect.authentication.key  = $curConnect.authentication.key }
     }
-    else
+    else { Write-Verbose "Create new Cloudstack config file" }
     # ======================================================================================================================
-    #  No existing file, create a new empty one
+    #  Check the command line and see whether config settings are overruled. Save and activate the config when done
     # ----------------------------------------------------------------------------------------------------------------------
-    {
-        Write-Verbose "Create new Cloudstack config file"
-        if (!$Apikey -or !$Secret) { throw "No connect credentials supplied" }
-        [xml]$cfg = '<?xml version="1.0" encoding="utf-8"?>
-                     <configuration>
-                       <connect>
-                         <command style="Windows" />
-                         <server address="" secureport="" unsecureport="" usessl="" />
-                         <authentication api="" key=""/>
-                       </connect>
-                       <api version="" count="" />
-                     </configuration>'
-        # ------------------------------------------------------------------------------------------------------------------
-        #  Convert the 'string' above to an xml document and set its content
-        # ------------------------------------------------------------------------------------------------------------------
-        $Connect = $cfg.Configuration.Connect
-    }
-    # ----------------------------------------------------------------------------------------------------------------------
-    #  Update the info and save the file
-    # ----------------------------------------------------------------------------------------------------------------------
-    $Connect.server.address = $Server
-    if ($cfgStyle -ne $CommandStyle) { $Connect.command.style = $cfgStyle }
-    if ($cfgUseSSL -ne $doUseSSL) { $Connect.server.usessl = $doUseSSL }
-    if ($cfgSPort -ne $SecurePort.ToString()) { $Connect.server.secureport = $SecurePort.ToString() }
-    if ($cfgUPort -ne $UnsecurePort.ToString()) { $Connect.server.unsecureport = $UnsecurePort.ToString() }
-    if ($cfgApi -ne $Apikey) { $Connect.authentication.api = $Apikey }
-    if ($cfgKey -ne $Secret) { $Connect.authentication.key = $Secret }
+    if ($bndPrm.CommandStyle.length -gt 0) { $newConnect.command.style = $CommandStyle }
+    if ($bndPrm.Server.length -gt 0)       { $newConnect.server.address = $Server }
+    if ($bndPrm.UseSSL)                    { $newConnect.server.usessl = "true" }
+    if ($bndPrm.SecurePort -gt 0)          { $newConnect.server.secureport = "$SecurePort" }
+    if ($bndPrm.UnsecurePort -gt 0)        { $newConnect.server.unsecureport = "$UnsecurePort" }
+    if ($bndPrm.Apikey.length -gt 0)       { $newConnect.authentication.api = $Apikey }
+    if ($bndPrm.Secret.length -gt 0)       { $newConnect.authentication.key = $Secret }
     rv Apikey; rv Secret
-    Write-Verbose "Update connection configuration"
-    $cfg.Save($ConfigFile)
+    Write-Verbose "Update and activate connection configuration"
+    $newCfg.Save($ConfigFile); Set-CSConfig "$ConfigFile"
     # ======================================================================================================================
-    #  Now for the exiting stuff. Get a complete list of api's from the server and if required update the config file
+    #  Now for the 'exiting' stuff. Get the list of entitled api's from the server and store version and count
+    #  Only perform this action if we have a apikey/secretkey pair!
     # ----------------------------------------------------------------------------------------------------------------------
-    Write-Verbose "Verifying Cloudstack api details"
-    $api = $cfg.Configuration.api
-    [xml]$apiList = (Invoke-CSApiCall listApis -Format XML)
-    $apiVersion =  $apiList.listapisresponse.'cloud-stack-version'
-    if ($api.Version -ne $apiVersion) { $api.Version = $apiVersion }
-    $apiCount   = $apiList.listapisresponse.count
-    if ($api.Count -ne $apiCount) { $api.Count = $apiCount }
-    Write-Verbose "Updating the api details"
-    $cfg.Save($ConfigFile)
-    # ======================================================================================================================
-    #  New/Updated config file is ready to use, activate it......
+    if (($newConnect.authentication.api.length -gt 0) -and ($newConnect.authentication.key.length -gt 0))
+    {
+        $apiInfo = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
+        Update-ApiInfo -apiVersion $apiInfo."cloud-stack-version" -apiCount $apiInfo.Count
+    }
     # ----------------------------------------------------------------------------------------------------------------------
-    Set-CSConfig "$ConfigFile"
 }
-
 ############################################################################################################################
 #  Invoke-CSApiCall
 #    This function will use the stored connection info to build and issue a valid Cloudstack api call
@@ -365,7 +348,7 @@ function Invoke-CSApiCall {
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V2.0
+    psCloudstack   : V2.0.1
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -382,7 +365,7 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
       [Parameter(Mandatory = $false)][string]$Secret,
       [Parameter(Mandatory = $false)][switch]$UseSSL,
       [Parameter(Mandatory = $false)][switch]$UseUnsecure)
-    $bndPrm = $PSCmdlet.MyInvocation.BoundParameters
+    $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
     # ======================================================================================================================
@@ -395,7 +378,7 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
         return [xml]"<error><message>$errMsg</message></error>"
     }
     # ======================================================================================================================
-    #  Local variables and definitions.
+    #  Local variables and definitions. Hide progress of Invoke-WebRequest 
     # ----------------------------------------------------------------------------------------------------------------------
     [void][System.Reflection.Assembly]::LoadWithpartialname("System.Web")
     $crypt = New-Object System.Security.Cryptography.HMACSHA1
@@ -413,7 +396,7 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
     #  If additional parameters and values are specified, format them to a valid api call query string
     #
     #  BEWARE!   We need to comply with the URL encoding standards. But the equal-sign in a parameter name/value pair
-    #            has to stay! Assume the name to be compliant and only convert the value. Pittfall #2: UrlEncode
+    #            has to stay! Assume the name to be compliant and only convert the value. Pitfall #2: UrlEncode
     #            replaces spaces with a + sign, but the Cloudstack api does not understand that. So replace + with %20
     # ----------------------------------------------------------------------------------------------------------------------
     $Command = ([System.Web.HttpUtility]::UrlEncode($Command)).Replace("+","%20")
@@ -434,7 +417,9 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
     {
         Write-Verbose "Unsecured web request for api call: $Command"
         $csUrl = "http://{0}:{1}/client/api?command={2}&{3}" -f $Connect.Server,$Connect.UnsecurePort,$Command,$queryString
+        $prefProgress = $progressPreference; $progressPreference = 'silentlyContinue'
         $Response = Invoke-WebRequest "$csUrl" -ErrorVariable iwr
+        $progressPreference = $prefProgress
     }
     # ======================================================================================================================
     #  Build a signed api call (URL Query String) using the details provided. Beware: Base64 does not deliver a string
@@ -454,7 +439,9 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
         $protocol = "http"; if ($Connect.UseSSL) { $protocol = "https" }
         $baseUrl = "{0}://{1}:{2}/client/api?" -f $protocol,$Connect.Server,$Connect.SecurePort
         $csUrl = "{0}command={1}&{2}&apikey={3}&signature={4}" -f $baseUrl,$Command,$queryString,$Connect.api,$apiSignature
+        $prefProgress = $progressPreference; $progressPreference = 'silentlyContinue'
         $Response = Invoke-WebRequest "$csUrl" -ErrorVariable iwr
+        $progressPreference = $prefProgress
     }
     # ======================================================================================================================
     #  Now return the content in the requested format
@@ -503,7 +490,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for windows style api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V2.0 - Generating 458 api functions for you (Windows style)
+    Welcome to psCloudstack V2.0.1 - Generating 458 api functions for you (Windows style)
     
     C:\PS> listUsers -listall
 
@@ -514,7 +501,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for unix style api functions
     C:\PS> Connect-CSManager -CommandStyle Unix
-    Welcome to psCloudstack V2.0 - Generating 458 api functions for you (Unix style)
+    Welcome to psCloudstack V2.0.1 - Generating 458 api functions for you (Unix style)
     
     C:\PS> listUsers -listall true
 
@@ -524,7 +511,7 @@ function Connect-CSManager {
     
     
   .Notes
-    psCloudstack   : V2.0
+    psCloudstack   : V2.0.1
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -532,7 +519,7 @@ function Connect-CSManager {
 #>
 [CmdletBinding()]
 param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$CommandStyle,[switch]$Silent)
-    $bndPrm = $PSCmdlet.MyInvocation.BoundParameters
+    $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
     # ==========================================================================================================================
@@ -556,9 +543,9 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # --------------------------------------------------------------------------------------------------------------------------
     Write-Verbose "Collecting api function details......"
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.0" -NoNewLine }
-    $laRSP = (Invoke-CSApiCall listApis).listapisresponse
-    if ($apiVersion -ne $laRSP.'cloud-stack-version') { Write-Warning "Cloudstack version mismatch. Stored: $apiversion, Active: $($laRSP.'cloud-stack-version')" }
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.0.1" -NoNewLine }
+    $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
+    if ($apiVersion -ne $laRSP.'cloud-stack-version') { Update-ApiInfo -apiVersion $laRSP."cloud-stack-version" -apiCount $laRSP.Count }
     if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you ($cmdStyle style)" }
     Write-Verbose "Generating $($laRSP.Count) api functions...... ($cmdStyle style)"
     $apiCnt = 0
@@ -611,7 +598,7 @@ function global:$apiName {
 @"
 
  .Notes
-    psCloudstack   : V2.0
+    psCloudstack   : V2.0.1
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -629,7 +616,7 @@ param($prmList)
     [string[]]`$Parameters = `$null
     `$doDebug   = (`$DebugPreference   -eq "Continue")
     `$doVerbose = (`$VerbosePreference -eq "Continue")
-    `$boundParameters = `$PSCmdlet.MyInvocation.BoundParameters
+    `$boundParameters = `$PSBoundParameters
     `$skipList = "Debug","ErrorAction","ErrorVariable","OutVariable","OutBuffer","PipelineVariable","Verbose","WarningAction","WarningVariable","Wait","NoWait"
     `$asyncApi = "$asyncApi" -eq "True"
     # ======================================================================================================================
@@ -733,4 +720,29 @@ param($prmList)
     # ----------------------------------------------------------------------------------------------------------------------
     iex $apiFunction
     }
+}
+
+############################################################################################################################
+####                                      Internal-Only (Non-Exported) Functions                                        ####
+############################################################################################################################
+#  Update-ApiInfo
+#    This is a non-exported function which is used to update the Api info in the active config file
+############################################################################################################################
+function Update-ApiInfo {
+param([Parameter(Mandatory = $true)][string]$apiVersion,[Parameter(Mandatory = $true)][string]$apiCount)
+    # ======================================================================================================================
+    #  Open the active config file
+    # ----------------------------------------------------------------------------------------------------------------------
+    $ConfigFile = $env:CSCONFIGFILE
+    if (($ConfigFile -eq "") -or !(Test-Path "$ConfigFile")) { throw "No psCloudstack configuration file found" }
+    Write-Verbose "Update Api info using: $ConfigFile"
+    [xml]$curCfg = gc "$ConfigFile"
+    # ======================================================================================================================
+    #  Get the api details and store them
+    # ----------------------------------------------------------------------------------------------------------------------
+    $curCfg.configuration.api.version = $apiVersion
+    $curCfg.configuration.api.count   = $apiCount
+    Write-Verbose "Updating the api details"
+    $curCfg.Save($ConfigFile)
+    # ----------------------------------------------------------------------------------------------------------------------
 }
