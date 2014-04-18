@@ -41,6 +41,13 @@ Most important change: asynch functions now support -Wait/-NoWait
   it requires.
 - Removed some old 'debug-like' lines of code.
 
+####V2.0.1####
+Some small bugfixes;
+- Initialize-CSConfig now works like documented
+- Get-CSConfig does not do a implied Set-CSConfig anymore
+- Hide Invoke-WebRequest progressbar
+- Removed version warning, update config instead using internal Update-ApiInfo function
+
 
 
 Kind Regards,
