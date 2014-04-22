@@ -48,6 +48,9 @@ Some small bugfixes;
 - Hide Invoke-WebRequest progressbar
 - Removed version warning, update config instead using internal Update-ApiInfo function
 
+####V2.1.0####
+Asynchronous jobs now return the job status and if possible the resulting job details
+If output is assigned to a variable, index 0 will show the job result and index 1 the job details.
 
 
 Kind Regards,

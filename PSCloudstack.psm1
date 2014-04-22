@@ -34,7 +34,7 @@ function Set-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.0.1
+    psCloudstack   : V2.1.0
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -96,7 +96,7 @@ function Get-CSConfig {
     - Count            The number of available api calls in that version
     
  .Notes
-    psCloudstack   : V2.0.1
+    psCloudstack   : V2.1.0
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -200,7 +200,7 @@ function Initialize-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.0.1
+    psCloudstack   : V2.1.0
     Function Name  : Initialize-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -348,7 +348,7 @@ function Invoke-CSApiCall {
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V2.0.1
+    psCloudstack   : V2.1.0
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -490,7 +490,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for windows style api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V2.0.1 - Generating 458 api functions for you (Windows style)
+    Welcome to psCloudstack V2.1.0 - Generating 458 api functions for you (Windows style)
     
     C:\PS> listUsers -listall
 
@@ -501,7 +501,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for unix style api functions
     C:\PS> Connect-CSManager -CommandStyle Unix
-    Welcome to psCloudstack V2.0.1 - Generating 458 api functions for you (Unix style)
+    Welcome to psCloudstack V2.1.0 - Generating 458 api functions for you (Unix style)
     
     C:\PS> listUsers -listall true
 
@@ -511,7 +511,7 @@ function Connect-CSManager {
     
     
   .Notes
-    psCloudstack   : V2.0.1
+    psCloudstack   : V2.1.0
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -535,6 +535,7 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     # --------------------------------------------------------------------------------------------------------------------------
     $Connect = Get-CSConfig -ShowKeys
     $apiVersion = $Connect.Version
+    $apiCount = $Connect.Count
     $cmdStyle = $Connect.command.style
     if ($CommandStyle.length -gt 0) { $cmdStyle = $CommandStyle }
     if ($cmdStyle.length -eq 0)     { $cmdStyle ="Windows" }
@@ -543,9 +544,9 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # --------------------------------------------------------------------------------------------------------------------------
     Write-Verbose "Collecting api function details......"
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.0.1" -NoNewLine }
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.1.0" -NoNewLine }
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
-    if ($apiVersion -ne $laRSP.'cloud-stack-version') { Update-ApiInfo -apiVersion $laRSP."cloud-stack-version" -apiCount $laRSP.Count }
+    if (($apiVersion -ne $laRSP.'cloud-stack-version') -or ($apiCount -ne $laRSP.Count)) { Update-ApiInfo -apiVersion $laRSP."cloud-stack-version" -apiCount $laRSP.Count }
     if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you ($cmdStyle style)" }
     Write-Verbose "Generating $($laRSP.Count) api functions...... ($cmdStyle style)"
     $apiCnt = 0
@@ -587,9 +588,10 @@ function global:$apiName {
         }
         if ($asyncApi)
         {
-            $apiFunction += " .Parameter NoWait`r`n     Do not wait for the job to complete. Return the jobid immediate after starting the job`r`n"
-            $apiFunction += " .Parameter Wait`r`n     Wait for the job to complete (Default: Wait for ever). If the job does not complete within the specified time return the jobid, else return the actual job completion details`r`n"
-            $prmList += "[Parameter(Mandatory=`$false,ParameterSetName='NoWait')][switch]`$NoWait,`r`n      [Parameter(Mandatory=`$false,ParameterSetName='Wait')][int32]`$Wait=-1,`r`n      "
+            $apiFunction += " .Parameter NoWait`r`n     Do not wait for the job to complete. Return the result(s) immediate after starting the job`r`n"
+            $prmList += "[Parameter(Mandatory=`$false,ParameterSetName='NoWait')][switch]`$NoWait,`r`n      "
+            $apiFunction += " .Parameter Wait`r`n     Wait xxx seconds for the job to complete before returning results. (Default: Wait for ever)`r`n"
+            $prmList += "[Parameter(Mandatory=`$false,ParameterSetName='Wait')][int32]`$Wait=-1,`r`n      "
         }
         if ($prmList -ne "") { $prmList = $prmList.TrimEnd(",`r`n      ") }
         $apiFunction += "`r`n .Outputs`r`n  System.Object`r`n"
@@ -598,7 +600,7 @@ function global:$apiName {
 @"
 
  .Notes
-    psCloudstack   : V2.0.1
+    psCloudstack   : V2.1.0
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -652,11 +654,14 @@ param($prmList)
 @"
     # ======================================================================================================================
     #  Asynchronous job: see whether we have to wait for completion, and if so.... do so.....
+    #  Use the jobinstancetype to determine if there is a matching list function. If so use that to display the results
     # ----------------------------------------------------------------------------------------------------------------------
     `$jobId  = `$apiResponse.selectsinglenode("//jobid")."#text"
     Write-Verbose "Async job started with id: `$jobId"
     `$jobResult = (Invoke-CSApiCall queryAsyncJobResult jobid=`$jobId -Verbose:`$false -Debug:`$false).queryasyncjobresultresponse
     `$jobSts = `$jobResult.jobstatus
+    `$instanceName = "list{0}*" -f `$jobResult.jobinstancetype
+    `$functionName = (ls function:`$instanceName -name -ea SilentlyContinue)
     if (!`$NoWait)
     {
         Write-Host "Waiting for asynchronous job to complete"
@@ -679,6 +684,8 @@ param($prmList)
         Write-Warning "Error `$errorCode - `$errorText"
     }
     Write-Output `$jobResult
+    if ((`$functionName.Count -eq 1)) { Write-Output (.`$functionName -id `$jobResult.jobinstanceId) }
+    else { Write-Warning "Cannot determine related list function for $apiName" }
     return
 }
 
