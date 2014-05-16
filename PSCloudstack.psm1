@@ -701,10 +701,11 @@ param($prmList)
     # ======================================================================================================================
     #  Synchronous job: convert the api response to the output system.object.
     # ----------------------------------------------------------------------------------------------------------------------
-    `$Items = `$apiResponse.lastChild
-    `$itemCnt = `$Items.count
-    Write-verbose "Received `$itemCnt response items"
-    foreach (`$Item in `$Items.get_ChildNodes().NextSibling)
+    `$Items = `$apiResponse.lastChild; `$itemCnt = `$Items.count
+    if (!`$itemCnt) { if (!`$Items.success) { `$Items = `$Items.get_ChildNodes() }; `$itemCnt = 1 }
+    else { `$Items = `$Items.get_ChildNodes().NextSibling }
+    Write-Verbose "Received `$itemCnt response items"
+    foreach (`$Item in `$Items)
     {
         if (`$Item -eq `$null) { Continue }
         `$apiObject  = New-Object -TypeName System.Object
