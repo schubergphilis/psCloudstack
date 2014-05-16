@@ -34,7 +34,7 @@ function Set-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.1.0
+    psCloudstack   : V2.1.1
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -96,7 +96,7 @@ function Get-CSConfig {
     - Count            The number of available api calls in that version
     
  .Notes
-    psCloudstack   : V2.1.0
+    psCloudstack   : V2.1.1
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -200,7 +200,7 @@ function Initialize-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.1.0
+    psCloudstack   : V2.1.1
     Function Name  : Initialize-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -348,7 +348,7 @@ function Invoke-CSApiCall {
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V2.1.0
+    psCloudstack   : V2.1.1
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -490,7 +490,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for windows style api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V2.1.0 - Generating 458 api functions for you (Windows style)
+    Welcome to psCloudstack V2.1.1 - Generating 458 api functions for you (Windows style)
     
     C:\PS> listUsers -listall
 
@@ -501,7 +501,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for unix style api functions
     C:\PS> Connect-CSManager -CommandStyle Unix
-    Welcome to psCloudstack V2.1.0 - Generating 458 api functions for you (Unix style)
+    Welcome to psCloudstack V2.1.1 - Generating 458 api functions for you (Unix style)
     
     C:\PS> listUsers -listall true
 
@@ -511,7 +511,7 @@ function Connect-CSManager {
     
     
   .Notes
-    psCloudstack   : V2.1.0
+    psCloudstack   : V2.1.1
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -544,7 +544,7 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # --------------------------------------------------------------------------------------------------------------------------
     Write-Verbose "Collecting api function details......"
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.1.0" -NoNewLine }
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.1.1" -NoNewLine }
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
     if (($apiVersion -ne $laRSP.'cloud-stack-version') -or ($apiCount -ne $laRSP.Count)) { Update-ApiInfo -apiVersion $laRSP."cloud-stack-version" -apiCount $laRSP.Count }
     if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you ($cmdStyle style)" }
@@ -600,7 +600,7 @@ function global:$apiName {
 @"
 
  .Notes
-    psCloudstack   : V2.1.0
+    psCloudstack   : V2.1.1
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -699,22 +699,17 @@ param($prmList)
             $apiFunction +=
 @"
     # ======================================================================================================================
-    #  Synchronous job: convert the api response to the output system.object. Skip NULL responses
+    #  Synchronous job: convert the api response to the output system.object.
     # ----------------------------------------------------------------------------------------------------------------------
-    `$children = `$apiResponse.get_ChildNodes().NextSibling|?{`$_ -ne `$null}
-    `$childCnt = `$children.count
-    Write-verbose "Received `$childCnt response items"
-    foreach (`$child in `$children.get_ChildNodes().NextSibling)
+    `$Items = `$apiResponse.lastChild
+    `$itemCnt = `$Items.count
+    Write-verbose "Received `$itemCnt response items"
+    foreach (`$Item in `$Items.get_ChildNodes().NextSibling)
     {
-        if (`$child -eq `$null) { Continue }
+        if (`$Item -eq `$null) { Continue }
         `$apiObject  = New-Object -TypeName System.Object
         `$apiNote = {param(`$n,`$v);Add-Member -InputObject `$apiObject -MemberType NoteProperty -Name `$n -Value `$v -Force}
-        foreach (`$rspName in "$rspNames".split())
-        {
-            try { `$val = `$child.`$rspName }
-            catch [System.Management.Automation.ItemNotFoundException] { `$val = `$null }
-            if (`$val -ne `$null) { .`$apiNote `$rspName `$val }
-        }
+        foreach (`$rspName in "$rspNames".split()) { .`$apiNote `$rspName `$Item.`$rspName }
         write-output `$apiObject
     }
     return

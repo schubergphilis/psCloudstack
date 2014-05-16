@@ -52,6 +52,10 @@ Some small bugfixes;
 Asynchronous jobs now return the job status and if possible the resulting job details
 If output is assigned to a variable, index 0 will show the job result and index 1 the job details.
 
+####V2.1.1####
+Improved: Now returning all api responses including empty ones
+Fixed: api response processing. listRegions (and others) sometimes produced an extra empty object
+
 
 Kind Regards,
 Hans van Veen
