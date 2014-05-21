@@ -373,9 +373,14 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
     # ----------------------------------------------------------------------------------------------------------------------
     trap
     {
-        $errMsg = "API Call Error: $($iwr.Message)"
-        Write-Host  $errMsg -f DarkBlue -b Yellow;
-        return [xml]"<error><message>$errMsg</message></error>"
+        $errMsg = $iwr.Message; $cmdIdent = "{0}response" -f $Command.ToLower()
+        Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow;
+        [xml]$response = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
+                          <$cmdIdent cloud-stack-version=`"$csVersion`">
+                            <displaytext>$errMsg</displaytext>
+                            <success>false</success>
+                          </$cmdIdent>"
+        return $response
     }
     # ======================================================================================================================
     #  Local variables and definitions. Hide progress of Invoke-WebRequest 
@@ -386,6 +391,7 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
     #  Get the connection details from the config file. Then see whether there are overrides....
     # ----------------------------------------------------------------------------------------------------------------------
     $Connect = Get-CSConfig -ShowKeys
+    $csVersion = $Connect.Version
     if ($Server -ne "") { $Connect.Server = $Server }
     if ($SecurePort -ne 0) { $Connect.SecurePort = $SecurePort }
     if ($UnsecurePort -ne 0) { $Connect.UnsecurePort = $UnsecurePort }
@@ -552,12 +558,26 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     $apiCnt = 0
     foreach ($api in $laRSP.api)
     {
+        # -------------------------------------------------------------------------------
+        #  Get all possible api parameters and create a sorted list
+        # -------------------------------------------------------------------------------
         $apiName = $api.name; $prmList = ""; $apiCnt += 1
         [string[]]$prmNames = $api.params.name|sort -unique
         $prmCount = $prmNames.Count
+        # -------------------------------------------------------------------------------
+        #  Get all possible api responses and create a sorted list. With only 2 response
+        #  values (displaytext & success) the api call result will be a boolean
+        # -------------------------------------------------------------------------------
         [string[]]$rspNames = $api.response.name|sort -unique
         $rspCount = $rspNames.Count
+        $rspBool = (($rspCount -eq 2) -and $rspNames.Contains("displaytext") -and $rspNames.Contains("success"))
+        # -------------------------------------------------------------------------------
+        #  Is it an asynchronous api?
+        # -------------------------------------------------------------------------------
         $asyncApi = $($api.isasync) -eq "true"
+        # -------------------------------------------------------------------------------
+        #  Build a sorted (and pretty formatted) list of related api's 
+        # -------------------------------------------------------------------------------
         $linkApi = "None"
         if ($api.related.length -gt 0) { $linkApi  = ($api.related.Split(",")|sort -unique) -join "`r`n- " }
         $asyncMark = ""; if ($asyncApi) { $asyncMark = "(A)" }
@@ -691,7 +711,7 @@ param($prmList)
 
 "@
         # ----------------------------------------------------------------------------------------------------------------------
-        #  Code section for synchronous jobs
+        #  Code section for synchronous jobs.
         # ----------------------------------------------------------------------------------------------------------------------
         }
         else
@@ -699,21 +719,43 @@ param($prmList)
             $apiFunction +=
 @"
     # ======================================================================================================================
-    #  Synchronous job: convert the api response to the output system.object.
+    #  Synchronous job: convert the api response to the output system.object
+    #  Add a completionStatus boolean of our own to this object!
     # ----------------------------------------------------------------------------------------------------------------------
     `$Items = `$apiResponse.lastChild; `$itemCnt = `$Items.count
-    if (!`$itemCnt) { if (!`$Items.success) { `$Items = `$Items.get_ChildNodes() }; `$itemCnt = 1 }
-    else { `$Items = `$Items.get_ChildNodes().NextSibling }
-    Write-Verbose "Received `$itemCnt response items"
-    foreach (`$Item in `$Items)
+    `$stsText = `$Items.displaytext; `$stsCode = `$Items.success
+    # ----------------------------------------------------------------------------------------------------------------------
+    #  Check: is it an error response? If so set the completionStatus to false else process the returned data
+    # ----------------------------------------------------------------------------------------------------------------------
+    if ((`$stsText.Length -gt 0) -and (`$stsCode -eq "false"))
     {
-        if (`$Item -eq `$null) { Continue }
         `$apiObject  = New-Object -TypeName System.Object
         `$apiNote = {param(`$n,`$v);Add-Member -InputObject `$apiObject -MemberType NoteProperty -Name `$n -Value `$v -Force}
-        foreach (`$rspName in "$rspNames".split()) { .`$apiNote `$rspName `$Item.`$rspName }
+        .`$apiNote "completionStatus" `$false
+        .`$apiNote "displaytext"      `$stsText
+        .`$apiNote "success"          `$stsCode
         write-output `$apiObject
+        return
     }
-    return
+    # ----------------------------------------------------------------------------------------------------------------------
+    #  Got a successful response, lets process the data
+    # ----------------------------------------------------------------------------------------------------------------------
+    else
+    {
+        if (!`$itemCnt) { if (!`$Items.success) { `$Items = `$Items.get_ChildNodes() }; `$itemCnt = 1 }
+        else { `$Items = `$Items.get_ChildNodes().NextSibling }
+        Write-Verbose "Received `$itemCnt response items"
+        foreach (`$Item in `$Items)
+        {
+            if (`$Item -eq `$null) { Continue }
+            `$apiObject  = New-Object -TypeName System.Object
+            `$apiNote = {param(`$n,`$v);Add-Member -InputObject `$apiObject -MemberType NoteProperty -Name `$n -Value `$v -Force}
+            .`$apiNote "completionStatus" `$true
+            foreach (`$rspName in "$rspNames".split()) { .`$apiNote `$rspName `$Item.`$rspName }
+            write-output `$apiObject
+        }
+        return
+    }
 }
 
 "@
