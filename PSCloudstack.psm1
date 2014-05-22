@@ -373,11 +373,13 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
     # ----------------------------------------------------------------------------------------------------------------------
     trap
     {
-        $errMsg = $iwr.Message; $cmdIdent = "{0}response" -f $Command.ToLower()
+        $errCode = "1"; $errMsg = $iwr.Message; $cmdIdent = "{0}response" -f $Command.ToLower()
+        if ($errMsg -match "^\d+") { $errCode = $matches[0]; $errMsg = $errMsg.SubString($errCode.Length) }
         Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow;
         [xml]$response = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
                           <$cmdIdent cloud-stack-version=`"$csVersion`">
                             <displaytext>$errMsg</displaytext>
+                            <errorcode>$errCode</errorcode>
                             <success>false</success>
                           </$cmdIdent>"
         return $response
@@ -552,6 +554,7 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     Write-Verbose "Collecting api function details......"
     if (!$Silent) { Write-Host "Welcome to psCloudstack V2.1.1" -NoNewLine }
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
+    if ($laRSP.success -eq "false") { return $laRSP }
     if (($apiVersion -ne $laRSP.'cloud-stack-version') -or ($apiCount -ne $laRSP.Count)) { Update-ApiInfo -apiVersion $laRSP."cloud-stack-version" -apiCount $laRSP.Count }
     if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you ($cmdStyle style)" }
     Write-Verbose "Generating $($laRSP.Count) api functions...... ($cmdStyle style)"
@@ -723,7 +726,7 @@ param($prmList)
     #  Add a completionStatus boolean of our own to this object!
     # ----------------------------------------------------------------------------------------------------------------------
     `$Items = `$apiResponse.lastChild; `$itemCnt = `$Items.count
-    `$stsText = `$Items.displaytext; `$stsCode = `$Items.success
+    `$stsText = `$Items.displaytext; `$errCode = `$Items.errorcode; `$stsCode = `$Items.success
     # ----------------------------------------------------------------------------------------------------------------------
     #  Check: is it an error response? If so set the completionStatus to false else process the returned data
     # ----------------------------------------------------------------------------------------------------------------------
@@ -732,7 +735,9 @@ param($prmList)
         `$apiObject  = New-Object -TypeName System.Object
         `$apiNote = {param(`$n,`$v);Add-Member -InputObject `$apiObject -MemberType NoteProperty -Name `$n -Value `$v -Force}
         .`$apiNote "completionStatus" `$false
+        .`$apiNote "apiName"           $apiName
         .`$apiNote "displaytext"      `$stsText
+        .`$apiNote "errorcode"        `$errCode
         .`$apiNote "success"          `$stsCode
         write-output `$apiObject
         return
