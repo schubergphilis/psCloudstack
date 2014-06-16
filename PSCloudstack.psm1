@@ -34,7 +34,7 @@ function Set-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.1.1
+    psCloudstack   : V2.1.2
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -82,21 +82,21 @@ function Get-CSConfig {
     Show the API & Secret key in the output object.
 
  .Outputs
-  System.Object
-    A System.Object which contains all collected settings.
+  psCloudstack.Config Object
+    A psCloudstack.Config System.Object which contains all collected settings.
     - File             The active configurationfile
     - Server           The server to connect to
     - UseSSL           Use https for connecting
     - SecurePort       The secure port number
     - UnsecurePort     The unsecure port number
+    - CommandStyle     Use Windows or Unix style commands
     - Api              The user api key (when requested)
     - Key              The user secret key (when requested)
-    - CommandStyle     Use Windows or Unix style commands
     - Version          The LAST seen cloudstack version!
     - Count            The number of available api calls in that version
     
  .Notes
-    psCloudstack   : V2.1.1
+    psCloudstack   : V2.1.2
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -107,11 +107,6 @@ param([string]$ConfigFile,[switch]$ShowKeys)
     $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
-    # ======================================================================================================================
-    #  Local & Global variables
-    # ----------------------------------------------------------------------------------------------------------------------
-    $csObject  = New-Object -TypeName System.Object
-    $addNote = {param($n,$v);Add-Member -InputObject $csObject -MemberType NoteProperty -Name $n -Value $v -Force}
     # ======================================================================================================================
     #  Verifying configuration file and if found make it the active one
     # ----------------------------------------------------------------------------------------------------------------------
@@ -125,23 +120,27 @@ param([string]$ConfigFile,[switch]$ShowKeys)
     [xml]$cfg = gc "$ConfigFile"
     $Connect = $cfg.configuration.connect
     $Api = $cfg.configuration.api
-    .$addNote File         $ConfigFile
-    .$addNote Server       $Connect.server.address
-    .$addNote UseSSL      ($Connect.server.usessl -eq "true")
-    .$addNote SecurePort   $Connect.server.secureport
-    .$addNote UnsecurePort $Connect.server.unsecureport
+    # ======================================================================================================================
+    #  Create the output object and add all info to it
+    # ----------------------------------------------------------------------------------------------------------------------
+    $cfgObject = New-Object -TypeName PSObject
+    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name File         -Value $ConfigFile
+    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Server       -Value $Connect.server.address
+    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UseSSL       -Value ($Connect.server.usessl -eq "true")
+    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name SecurePort   -Value $Connect.server.secureport
+    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UnsecurePort -Value $Connect.server.unsecureport
+    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name CommandStyle -Value $Connect.command.style
     if ($ShowKeys)
     {
-        .$addNote Api      $Connect.authentication.api
-        .$addNote Key      $Connect.authentication.key
+        $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Api -Value $Connect.authentication.api
+        $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Key -Value $Connect.authentication.key
     }
-    .$addNote CommandStyle $Connect.command.style
-    .$addNote Version      $Api.version
-    .$addNote Count        $Api.count
+    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Version -Value $Api.version
+    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Count   -Value $Api.count
     # ======================================================================================================================
     #  All connection details are collected, write the object
     # ----------------------------------------------------------------------------------------------------------------------
-    Write-Output $csObject
+    Write-Output $cfgObject
 }
 
 ############################################################################################################################
@@ -200,7 +199,7 @@ function Initialize-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.1.1
+    psCloudstack   : V2.1.2
     Function Name  : Initialize-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -348,7 +347,7 @@ function Invoke-CSApiCall {
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V2.1.1
+    psCloudstack   : V2.1.2
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -375,7 +374,7 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
     {
         $errCode = "1"; $errMsg = $iwr.Message; $cmdIdent = "{0}response" -f $Command.ToLower()
         if ($errMsg -match "^\d+") { $errCode = $matches[0]; $errMsg = $errMsg.SubString($errCode.Length) }
-        Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow;
+        Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow
         [xml]$response = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
                           <$cmdIdent cloud-stack-version=`"$csVersion`">
                             <displaytext>$errMsg</displaytext>
@@ -498,7 +497,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for windows style api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V2.1.1 - Generating 458 api functions for you (Windows style)
+    Welcome to psCloudstack V2.1.2 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -509,7 +508,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for unix style api functions
     C:\PS> Connect-CSManager -CommandStyle Unix
-    Welcome to psCloudstack V2.1.1 - Generating 458 api functions for you (Unix style)
+    Welcome to psCloudstack V2.1.2 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall true
 
@@ -519,7 +518,7 @@ function Connect-CSManager {
     
     
   .Notes
-    psCloudstack   : V2.1.1
+    psCloudstack   : V2.1.2
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -552,11 +551,11 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # --------------------------------------------------------------------------------------------------------------------------
     Write-Verbose "Collecting api function details......"
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.1.1" -NoNewLine }
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.1.2" -NoNewLine }
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
     if ($laRSP.success -eq "false") { return $laRSP }
     if (($apiVersion -ne $laRSP.'cloud-stack-version') -or ($apiCount -ne $laRSP.Count)) { Update-ApiInfo -apiVersion $laRSP."cloud-stack-version" -apiCount $laRSP.Count }
-    if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you ($cmdStyle style)" }
+    if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you" }
     Write-Verbose "Generating $($laRSP.Count) api functions...... ($cmdStyle style)"
     $apiCnt = 0
     foreach ($api in $laRSP.api)
@@ -623,7 +622,7 @@ function global:$apiName {
 @"
 
  .Notes
-    psCloudstack   : V2.1.1
+    psCloudstack   : V2.1.2
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V2
@@ -703,8 +702,15 @@ param($prmList)
         `$resultCode = `$jobResult.jobresultcode
         `$errorCode = `$jobResult.jobresult.errorcode
         `$errorText = `$jobResult.jobresult.errortext
-        Write-Warning "$apiName failed"
-        Write-Warning "Error `$errorCode - `$errorText"
+        `$errObject = New-Object -TypeName PSObject
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  completionStatus -Value `$false
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  apiName          -Value $apiName
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  displaytext      -Value `$errorText
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  errorcode        -Value `$errorCode
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  success          -Value `$resultCode
+        Write-Warning "$apiName failed - Error `$errorCode, `$errorText"
+        Write-Output `$errObject
+        return
     }
     Write-Output `$jobResult
     if ((`$functionName.Count -eq 1)) { Write-Output (.`$functionName -id `$jobResult.jobinstanceId) }
@@ -732,14 +738,13 @@ param($prmList)
     # ----------------------------------------------------------------------------------------------------------------------
     if ((`$stsText.Length -gt 0) -and (`$stsCode -eq "false"))
     {
-        `$apiObject  = New-Object -TypeName System.Object
-        `$apiNote = {param(`$n,`$v);Add-Member -InputObject `$apiObject -MemberType NoteProperty -Name `$n -Value `$v -Force}
-        .`$apiNote "completionStatus" `$false
-        .`$apiNote "apiName"           $apiName
-        .`$apiNote "displaytext"      `$stsText
-        .`$apiNote "errorcode"        `$errCode
-        .`$apiNote "success"          `$stsCode
-        write-output `$apiObject
+        `$errObject = New-Object -TypeName PSObject
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  completionStatus -Value `$false
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  apiName          -Value $apiName
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  displaytext      -Value `$stsText
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  errorcode        -Value `$errCode
+        `$errObject|Add-Member NoteProperty -TypeName psCloudstack.Error -Name  success          -Value `$stsCode
+        Write-Output `$errObject
         return
     }
     # ----------------------------------------------------------------------------------------------------------------------
@@ -753,11 +758,13 @@ param($prmList)
         foreach (`$Item in `$Items)
         {
             if (`$Item -eq `$null) { Continue }
-            `$apiObject  = New-Object -TypeName System.Object
-            `$apiNote = {param(`$n,`$v);Add-Member -InputObject `$apiObject -MemberType NoteProperty -Name `$n -Value `$v -Force}
-            .`$apiNote "completionStatus" `$true
-            foreach (`$rspName in "$rspNames".split()) { .`$apiNote `$rspName `$Item.`$rspName }
-            write-output `$apiObject
+            `$apiObject  = New-Object -TypeName PSObject
+            `$apiObject|Add-Member NoteProperty -TypeName psCloudstack.$apiName -Name completionStatus -Value `$true
+            foreach (`$rspName in "$rspNames".split())
+            {
+                `$apiObject|Add-Member NoteProperty -TypeName psCloudstack.$apiName -Name `$rspName -Value `$Item.`$rspName
+            }
+            Write-Output `$apiObject
         }
         return
     }

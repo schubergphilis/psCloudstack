@@ -56,6 +56,11 @@ If output is assigned to a variable, index 0 will show the job result and index 
 Improved: Now returning all api responses including empty ones
 Fixed: api response processing. listRegions (and others) sometimes produced an extra empty object
 
+####V2.1.2####
+Improved: Creation of output objects. GetType now returns some useful info of the object (mostly of cosmetic nature)
+Improved: Error handling of the Invoke-CSApiCall, now returning more error details
+Improved: Error handling of the asynchronous calls, also returning more error details
+Improved: Every api function now returns a completionStatus field specifying the overall end result.
 
 Kind Regards,
 Hans van Veen
