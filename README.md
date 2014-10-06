@@ -1,6 +1,6 @@
 #psCloudstack#
 A PowerShell module which dynamically creates PowerShell functions from all available Cloudstack api's      
-Copy **all** files to one of the folders listed in the PSModulePath environment variable.
+Copy the psCloudstack.* files to one of the folders listed in the PSModulePath environment variable.
 
 ####To activate:####
 Beginning in Windows PowerShell 3.0, installed modules are automatically imported to the session when you use any commands or

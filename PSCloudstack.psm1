@@ -34,10 +34,10 @@ function Set-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.1.2
+    psCloudstack   : V2.2.0
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
-    Requires       : PowerShell V2
+    Requires       : PowerShell V3
 
 #>
 [CmdletBinding()]
@@ -45,6 +45,8 @@ param([parameter(Mandatory=$true)][string]$ConfigFile)
     $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ======================================================================================================================
     #  Verifying configuration file
     # ----------------------------------------------------------------------------------------------------------------------
@@ -96,10 +98,10 @@ function Get-CSConfig {
     - Count            The number of available api calls in that version
     
  .Notes
-    psCloudstack   : V2.1.2
+    psCloudstack   : V2.2.0
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
-    Requires       : PowerShell V2
+    Requires       : PowerShell V3
 
 #>
 [CmdletBinding()]
@@ -107,6 +109,8 @@ param([string]$ConfigFile,[switch]$ShowKeys)
     $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ======================================================================================================================
     #  Verifying configuration file and if found make it the active one
     # ----------------------------------------------------------------------------------------------------------------------
@@ -199,10 +203,10 @@ function Initialize-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V2.1.2
+    psCloudstack   : V2.2.0
     Function Name  : Initialize-CSConfig
     Author         : Hans van Veen
-    Requires       : PowerShell V2
+    Requires       : PowerShell V3
 
   .Example
     # Create/Update the content of the default config file
@@ -222,6 +226,8 @@ param([parameter(Mandatory=$true)][string]$Server,
     $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ======================================================================================================================
     #  Local & Global variables
     # ----------------------------------------------------------------------------------------------------------------------
@@ -347,10 +353,10 @@ function Invoke-CSApiCall {
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V2.1.2
+    psCloudstack   : V2.2.0
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
-    Requires       : PowerShell V2
+    Requires       : PowerShell V3
 
 #>
 [CmdletBinding()]
@@ -367,6 +373,8 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
     $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ======================================================================================================================
     #  Trap all errors and return them in a fashionable way...
     # ----------------------------------------------------------------------------------------------------------------------
@@ -497,7 +505,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for windows style api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V2.1.2 - Generating 458 api functions for you
+    Welcome to psCloudstack V2.2.0 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -508,7 +516,7 @@ function Connect-CSManager {
  .Example
     # Connect and prepare for unix style api functions
     C:\PS> Connect-CSManager -CommandStyle Unix
-    Welcome to psCloudstack V2.1.2 - Generating 458 api functions for you
+    Welcome to psCloudstack V2.2.0 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall true
 
@@ -518,10 +526,10 @@ function Connect-CSManager {
     
     
   .Notes
-    psCloudstack   : V2.1.2
+    psCloudstack   : V2.2.0
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
-    Requires       : PowerShell V2
+    Requires       : PowerShell V3
 
 #>
 [CmdletBinding()]
@@ -529,6 +537,8 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ==========================================================================================================================
     #   The api parameter types differ in name from the Powershell types. Create a translation table to deal with this.
     #   The Windows and Unix command styles only differ on 1 thing: Windows switch is true when specified
@@ -551,7 +561,7 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # --------------------------------------------------------------------------------------------------------------------------
     Write-Verbose "Collecting api function details......"
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.1.2" -NoNewLine }
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.2.0" -NoNewLine }
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
     if ($laRSP.success -eq "false") { return $laRSP }
     if (($apiVersion -ne $laRSP.'cloud-stack-version') -or ($apiCount -ne $laRSP.Count)) { Update-ApiInfo -apiVersion $laRSP."cloud-stack-version" -apiCount $laRSP.Count }
@@ -561,11 +571,14 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     foreach ($api in $laRSP.api)
     {
         # -------------------------------------------------------------------------------
-        #  Get all possible api parameters and create a sorted list
+        #  Get all possible api parameters and create a sorted list of unique names.
+        #  Also turn this list into a spaced string which can be used for skipping
+        #  non-cloudstack parameters when building the API call
         # -------------------------------------------------------------------------------
         $apiName = $api.name; $prmList = ""; $apiCnt += 1
         [string[]]$prmNames = $api.params.name|sort -unique
-        $prmCount = $prmNames.Count
+        $prmCount = $prmNames.Count; $prmCheck = ""
+        if ($prmCount -gt 0) { $prmCheck = $prmNames.ToLower() -join " " }
         # -------------------------------------------------------------------------------
         #  Get all possible api responses and create a sorted list. With only 2 response
         #  values (displaytext & success) the api call result will be a boolean
@@ -594,10 +607,12 @@ function global:$apiName {
 <# 
  .Synopsis
   $($api.description)
+
  .Description
   $($api.description)
     Asynch: $($api.isasync)
-    
+
+
 "@
         # ----------------------------------------------------------------------------------------------------------------------
         #  Build a neatly formatted list of parameters, make sure mandatory and type settings are correct
@@ -621,11 +636,12 @@ function global:$apiName {
         $apiFunction +=
 @"
 
+
  .Notes
-    psCloudstack   : V2.1.2
+    psCloudstack   : V2.2.0
     Function Name  : $apiName
     Author         : Hans van Veen
-    Requires       : PowerShell V2
+    Requires       : PowerShell V3
  
  .Link
     Related functions (aka API calls) are:
@@ -635,13 +651,16 @@ function global:$apiName {
 [CmdletBinding(PositionalBinding=`$false, DefaultParameterSetName="$apiName")] 
 param($prmList)
     # ======================================================================================================================
+    #  Procees common parameters
+    `$boundParameters = `$PSBoundParameters
+    `$doDebug   = (`$DebugPreference   -eq "Continue")
+    `$doVerbose = (`$VerbosePreference -eq "Continue")
+    if (`$boundParameters.ErrorAction -ne `$null)   { `$ErrorActionPreference = `$boundParameters.ErrorAction }
+    if (`$boundParameters.WarningAction -ne `$null) { `$WarningPreference     = `$boundParameters.WarningAction }
+    # ======================================================================================================================
     #  Local & Global variables
     # ----------------------------------------------------------------------------------------------------------------------
     [string[]]`$Parameters = `$null
-    `$doDebug   = (`$DebugPreference   -eq "Continue")
-    `$doVerbose = (`$VerbosePreference -eq "Continue")
-    `$boundParameters = `$PSBoundParameters
-    `$skipList = "Debug","ErrorAction","ErrorVariable","OutVariable","OutBuffer","PipelineVariable","Verbose","WarningAction","WarningVariable","Wait","NoWait"
     `$asyncApi = "$asyncApi" -eq "True"
     # ======================================================================================================================
     #  Verify build and current config. Reload psCloudstack if there is no match
@@ -660,9 +679,11 @@ param($prmList)
     # ----------------------------------------------------------------------------------------------------------------------
     foreach (`$prmName in `$boundParameters.Keys)
     {
-        if (`$skipList.Contains(`$prmName)) { continue }
-        `$prmValue = `$boundParameters["`$prmName"]
-        [string[]]`$Parameters += "`$prmName=`$(`$prmValue -join ",")"
+        if ("$prmCheck".Contains(`$prmName.ToLower()))
+        {
+            `$prmValue = `$boundParameters["`$prmName"]
+            [string[]]`$Parameters += "`$prmName=`$(`$prmValue -join ",")"
+        }
     }
     `$apiResponse = Invoke-CSApiCAll $apiName `$Parameters -Verbose:`$doVerbose -Debug:`$doDebug
 

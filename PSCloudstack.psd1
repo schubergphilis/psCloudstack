@@ -20,7 +20,7 @@
 ModuleToProcess = 'psCloudstack.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.1.0'
+ModuleVersion = '2.2.0'
 
 # ID used to uniquely identify this module
 GUID = 'e98607bf-a84b-4453-96fc-7d791bf2e001'
@@ -38,7 +38,7 @@ Copyright = '(c)Hans L.M. van Veen. Licensed under the Apache License, Version 2
 Description = 'This module contains the static functions for maintaining a Cloudstack environment.'
 
 # Minimum version of the Windows PowerShell engine required by this module
-PowerShellVersion = '2.0'
+PowerShellVersion = '3.0'
 
 # Name of the Windows PowerShell host required by this module
 PowerShellHostName = ''

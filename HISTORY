@@ -62,5 +62,10 @@ Improved: Error handling of the Invoke-CSApiCall, now returning more error detai
 Improved: Error handling of the asynchronous calls, also returning more error details
 Improved: Every api function now returns a completionStatus field specifying the overall end result.
 
+####V2.2.0####
+Raised Powershell version dependency to V3 (dependency already existed but was never documented)
+Changed parameter check. Now comparing against dynamic include list (provided by listApis) in stead of static (hardcoded) exclude list
+Added ErrporAction and WarningAction handling to all functions (static & dynamic)
+
 Kind Regards,
 Hans van Veen
