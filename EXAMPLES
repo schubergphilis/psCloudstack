@@ -26,19 +26,23 @@ PS C:\> ls function:
 CommandType     Name                                               ModuleName
 -----------     ----                                               ----------
 Function        A:
-Function        B:
+Function        Add-CSConfig                                       psCloudstack
     ........
     ........
 Function        Connect-CSManager                                  psCloudstack
+Function        Convert-CSConfig                                   psCloudstack
     ........
     ........
 Function        Get-CSConfig                                       psCloudstack
     ........
     ........
-Function        Initialize-CSConfig                                psCloudstack
 Function        Invoke-CSApiCall                                   psCloudstack
+Function        J:
     ........
     ........
+Function        R:
+Function        Remove-CSConfig                                    psCloudstack
+Function        S:
 Function        Set-CSConfig                                       psCloudstack
     ........
     ........
@@ -187,3 +191,120 @@ zonename                    : Bootcamp
 ```
 
 ###and I leave the rest to your imagination!###
+
+##Converting existing configuration files##
+For example 3 configuration files;
+- C:\Users\'username'\AppData\Local\psCloudstack.config
+```
+<?xml version="1.0" encoding="utf-8"?>
+<configuration version="2.0">
+  <connect>
+    <server address="test.cloudstack.com" secureport="8080" unsecureport="8096" usessl="true" />
+    <authentication api="rrrrrrrrrrrrrrrrrrrrrrrrrrrrrr" key="ssssssssssssssssssssssssssssss" />
+  </connect>
+  <api version="4.4.4" count="266" />
+</configuration>
+```
+
+- C:\Users\'username'\AppData\Local\psCloudstack-Test1.config
+```
+<?xml version="1.0" encoding="utf-8"?>
+<configuration version="2.0">
+  <connect>
+    <server address="test1.cloudstack.com" secureport="443" unsecureport="80" usessl="true" />
+    <authentication api="vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv" key="wwwwwwwwwwwwwwwwwwwwwwwwwwwwww" />
+  </connect>
+  <api version="4.4.4" count="266" />
+</configuration>
+```
+
+- C:\Users\'username'\AppData\Local\psCloudstack-Test2.config
+```
+<?xml version="1.0" encoding="utf-8"?>
+<configuration version="2.0">
+  <connect>
+    <server address="test2.cloudstack.com" secureport="443" unsecureport="80" usessl="true" />
+    <authentication api="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" key="yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" />
+  </connect>
+  <api version="4.4.4" count="266" />
+</configuration>
+```
+
+#####Step 1#####
+PS> Convert-CSConfig -Verbose
+VERBOSE: Converting config file "C:\Users\'username'\AppData\Local\psCloudstack.config"
+VERBOSE: default psCloudstack config has been updated
+```
+<?xml version="1.0" encoding="utf-8"?>
+<configuration version="3.0">
+  <connect name="Default">
+    <server address="test.cloudstack.com" secureport="8080" unsecureport="8096" usessl="true" />
+    <authentication api="rrrrrrrrrrrrrrrrrrrrrrrrrrrrrr" key="ssssssssssssssssssssssssssssss" />
+  </connect>
+</configuration>
+```
+
+#####Step 2#####
+PS> Convert-CSConfig -ConfigFile C:\Users\'username'\AppData\Local\psCloudstack-Test1.config -Name Test1 -Verb
+VERBOSE: Converting config file "C:\Users\'username'\AppData\Local\psCloudstack-Test1.config"
+VERBOSE: Merging psCloudstack config data
+VERBOSE: default psCloudstack config has been updated
+```
+<?xml version="1.0" encoding="utf-8"?>
+<configuration version="3.0">
+  <connect name="Default">
+    <server address="test.cloudstack.com" secureport="8080" unsecureport="8096" usessl="true" />
+    <authentication api="rrrrrrrrrrrrrrrrrrrrrrrrrrrrrr" key="ssssssssssssssssssssssssssssss" />
+  </connect>
+  <connect name="Test1">
+    <server address="test1.cloudstack.com" secureport="443" unsecureport="80" usessl="true" />
+    <authentication api="vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv" key="wwwwwwwwwwwwwwwwwwwwwwwwwwwwww" />
+  </connect>
+</configuration>
+```
+
+#####Step 3#####
+PS> Convert-CSConfig -ConfigFile C:\Users\'username'\AppData\Local\psCloudstack-Test2.config -Verb
+VERBOSE: Converting config file "C:\Users\'username'\AppData\Local\psCloudstack-Test2.config"
+VERBOSE: Merging psCloudstack config data
+WARNING: Duplicate name found, using "Default+"
+VERBOSE: default psCloudstack config has been updated
+```
+<?xml version="1.0" encoding="utf-8"?>
+<configuration version="3.0">
+  <connect name="Default">
+    <server address="test.cloudstack.com" secureport="8080" unsecureport="8096" usessl="true" />
+    <authentication api="rrrrrrrrrrrrrrrrrrrrrrrrrrrrrr" key="ssssssssssssssssssssssssssssss" />
+  </connect>
+  <connect name="Test1">
+    <server address="test1.cloudstack.com" secureport="443" unsecureport="80" usessl="true" />
+    <authentication api="vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv" key="wwwwwwwwwwwwwwwwwwwwwwwwwwwwww" />
+  </connect>
+  <connect name="Default+">
+    <server address="test2.cloudstack.com" secureport="443" unsecureport="80" usessl="true" />
+    <authentication api="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" key="yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" />
+  </connect>
+</configuration>
+```
+
+#####Step 4#####
+PS> Set-CSConfig -Name "Default+" -NewName "Test2" -Verbose
+VERBOSE: Reading psCloudstack config file
+VERBOSE: psCloudstack config has been updated
+```
+<?xml version="1.0" encoding="utf-8"?>
+<configuration version="3.0">
+  <connect name="Default">
+    <server address="test.cloudstack.com" secureport="8080" unsecureport="8096" usessl="true" />
+    <authentication api="rrrrrrrrrrrrrrrrrrrrrrrrrrrrrr" key="ssssssssssssssssssssssssssssss" />
+  </connect>
+  <connect name="Test1">
+    <server address="test1.cloudstack.com" secureport="443" unsecureport="80" usessl="true" />
+    <authentication api="vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv" key="wwwwwwwwwwwwwwwwwwwwwwwwwwwwww" />
+  </connect>
+  <connect name="Test2">
+    <server address="test2.cloudstack.com" secureport="443" unsecureport="80" usessl="true" />
+    <authentication api="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" key="yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" />
+  </connect>
+</configuration>
+```
