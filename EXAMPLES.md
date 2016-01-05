@@ -194,8 +194,8 @@ zonename                    : Bootcamp
 
 ##Converting existing configuration files##
 For example 3 configuration files;
-- C:\Users\'username'\AppData\Local\psCloudstack.config
 ```
+PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="2.0">
   <connect>
@@ -204,10 +204,11 @@ For example 3 configuration files;
   </connect>
   <api version="4.4.4" count="266" />
 </configuration>
+PS>
 ```
 
-- C:\Users\'username'\AppData\Local\psCloudstack-Test1.config
 ```
+PS> cat C:\Users\'username'\AppData\Local\psCloudstack-Test1.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="2.0">
   <connect>
@@ -216,10 +217,11 @@ For example 3 configuration files;
   </connect>
   <api version="4.4.4" count="266" />
 </configuration>
+PS>
 ```
 
-- C:\Users\'username'\AppData\Local\psCloudstack-Test2.config
 ```
+PS> cat C:\Users\'username'\AppData\Local\psCloudstack-Test2.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="2.0">
   <connect>
@@ -228,13 +230,15 @@ For example 3 configuration files;
   </connect>
   <api version="4.4.4" count="266" />
 </configuration>
+PS>
 ```
 
-#####Step 1#####
+#####Step 1 - No parameters#####
+```
 PS> Convert-CSConfig -Verbose
 VERBOSE: Converting config file "C:\Users\'username'\AppData\Local\psCloudstack.config"
 VERBOSE: default psCloudstack config has been updated
-```
+PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="3.0">
   <connect name="Default">
@@ -242,14 +246,16 @@ VERBOSE: default psCloudstack config has been updated
     <authentication api="rrrrrrrrrrrrrrrrrrrrrrrrrrrrrr" key="ssssssssssssssssssssssssssssss" />
   </connect>
 </configuration>
+PS>
 ```
 
-#####Step 2#####
+#####Step 2 - Specify source file and connection name#####
+```
 PS> Convert-CSConfig -ConfigFile C:\Users\'username'\AppData\Local\psCloudstack-Test1.config -Name Test1 -Verb
 VERBOSE: Converting config file "C:\Users\'username'\AppData\Local\psCloudstack-Test1.config"
 VERBOSE: Merging psCloudstack config data
 VERBOSE: default psCloudstack config has been updated
-```
+PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="3.0">
   <connect name="Default">
@@ -261,15 +267,17 @@ VERBOSE: default psCloudstack config has been updated
     <authentication api="vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv" key="wwwwwwwwwwwwwwwwwwwwwwwwwwwwww" />
   </connect>
 </configuration>
+PS>
 ```
 
-#####Step 3#####
+#####Step 3- Specify source file, NO connetion name#####
+```
 PS> Convert-CSConfig -ConfigFile C:\Users\'username'\AppData\Local\psCloudstack-Test2.config -Verb
 VERBOSE: Converting config file "C:\Users\'username'\AppData\Local\psCloudstack-Test2.config"
 VERBOSE: Merging psCloudstack config data
 WARNING: Duplicate name found, using "Default+"
 VERBOSE: default psCloudstack config has been updated
-```
+PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="3.0">
   <connect name="Default">
@@ -285,13 +293,15 @@ VERBOSE: default psCloudstack config has been updated
     <authentication api="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" key="yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" />
   </connect>
 </configuration>
+PS>
 ```
 
-#####Step 4#####
+#####Step 4 - Rename the Default+ connection#####
+```
 PS> Set-CSConfig -Name "Default+" -NewName "Test2" -Verbose
 VERBOSE: Reading psCloudstack config file
 VERBOSE: psCloudstack config has been updated
-```
+PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="3.0">
   <connect name="Default">
@@ -307,4 +317,5 @@ VERBOSE: psCloudstack config has been updated
     <authentication api="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" key="yyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" />
   </connect>
 </configuration>
+PS>
 ```
