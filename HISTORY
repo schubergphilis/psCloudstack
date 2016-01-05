@@ -65,7 +65,19 @@ Improved: Every api function now returns a completionStatus field specifying the
 ####V2.2.0####
 Raised Powershell version dependency to V3 (dependency already existed but was never documented)
 Changed parameter check. Now comparing against dynamic include list (provided by listApis) in stead of static (hardcoded) exclude list
-Added ErrporAction and WarningAction handling to all functions (static & dynamic)
+Added ErrorAction and WarningAction handling to all functions (static & dynamic)
+
+####V3.0.0####
+Got rid of one configuration file per Cloudstack server/environment. psCloudstack now uses one configutration file to manage multiple
+(named) Cloudstack server connections. The Initialize-CSConfig function has been replaces with the Add-CSConfig and Remove-CSConfig
+functions, and the Connect-CSManager, Set-CSConfig and Get-CSConfig functions have been changed to accomodate this.
+Connect-CSManager now uses a 'name' parameter to select the required connection configuration form the configuration file.
+If the parameter is not used, the configuration named 'Default' will be used, and if that one does not exists, the 1st configuration
+in the configuration file will be used.
+Last but not least. Displaying final status results of an asynchroneous jobs was unreliable, not every asynchroneous job has a clear
+recognizable list function available in the Related Functions part. Connect-CSManager now builds a list of asynchroneous functions
+with their matching list function, and this list is now used to find the match.
+
 
 Kind Regards,
 Hans van Veen

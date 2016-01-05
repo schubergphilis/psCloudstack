@@ -16,155 +16,23 @@
 #
 ############################################################################################################################
 #  Set-CSConfig
-#    Sets %CSCONFIGFILE% to the specified file specification, but only if that file exists!
+#    Updates parts of a connection configuration
 ############################################################################################################################
 function Set-CSConfig {
 <# 
  .Synopsis
-    Set the CSCONFIGFILE environment variable
+    Updates parts of a connection configuration
 
  .Description
-    Set the CSCONFIGFILE environment variable to the specified or default value, but only if that file exists.
-    This environment variable then specifies the active configuration and connection settings.
+    This function is used to modify connection configuration information of a connection.
 
- .Parameter ConfigFile
-    The path and name of a config file to store as %CSCONFIGFILE%.
+ .Parameter Name
+    A reference name which will identify the connection data.
 
- .Outputs
-    None
-    
- .Notes
-    psCloudstack   : V2.2.0
-    Function Name  : Set-CSConfig
-    Author         : Hans van Veen
-    Requires       : PowerShell V3
+ .Parameter NewName
+    A new reference name which will identify the connection data.
+    A warning will be generated in case of a duplicate name
 
-#>
-[CmdletBinding()]
-param([parameter(Mandatory=$true)][string]$ConfigFile)
-    $bndPrm = $PSBoundParameters
-    $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
-    $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
-    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
-    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
-    # ======================================================================================================================
-    #  Verifying configuration file
-    # ----------------------------------------------------------------------------------------------------------------------
-    if ($ConfigFile -eq "")
-    {
-        $ConfigFile = "{0}\psCloudstack.config" -f $env:LocalAppData
-        Write-Verbose "Using default config: $ConfigFile"
-    }
-    else { Write-Verbose "Using requested config: $ConfigFile" }
-    if (!(Test-Path "$ConfigFile")) { throw "Specified psCloudstack configuration file not found" }
-    $env:CSCONFIGFILE = $ConfigFile
-}
-
-############################################################################################################################
-#  Get-CSConfig
-#    Reads the configuration for the Cloudstack Management server and returns it as a system.object
-############################################################################################################################
-function Get-CSConfig {
-<# 
- .Synopsis
-    Get the configuration and connection settings from the active or requested configuration file.
-
- .Description
-    This function gets the configuration and connection settings from the active config file. This config file, which has
-    been created with Initialize-CSConfig and/or set to active with Set-CSConfig, contains the required connection info for
-    connecting to the Cloudstack Management server, either via the authenticated or unauthenticated port.
-
-    If no configuration file is specified, the value of %CSCONFIGFILE% will be used. And if that environment varaiable does
-    not exist %LOCALAPPDATA%\psCloudstack.config will be used.
-  
- .Parameter ConfigFile
-    The path and name of a config file which contains the configuration and connection settings.
-      
- .Parameter ShowKeys
-    Show the API & Secret key in the output object.
-
- .Outputs
-  psCloudstack.Config Object
-    A psCloudstack.Config System.Object which contains all collected settings.
-    - File             The active configurationfile
-    - Server           The server to connect to
-    - UseSSL           Use https for connecting
-    - SecurePort       The secure port number
-    - UnsecurePort     The unsecure port number
-    - CommandStyle     Use Windows or Unix style commands
-    - Api              The user api key (when requested)
-    - Key              The user secret key (when requested)
-    - Version          The LAST seen cloudstack version!
-    - Count            The number of available api calls in that version
-    
- .Notes
-    psCloudstack   : V2.2.0
-    Function Name  : Get-CSConfig
-    Author         : Hans van Veen
-    Requires       : PowerShell V3
-
-#>
-[CmdletBinding()]
-param([string]$ConfigFile,[switch]$ShowKeys)
-    $bndPrm = $PSBoundParameters
-    $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
-    $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
-    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
-    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
-    # ======================================================================================================================
-    #  Verifying configuration file and if found make it the active one
-    # ----------------------------------------------------------------------------------------------------------------------
-    if  ($ConfigFile -eq "") { $ConfigFile = $env:CSCONFIGFILE }
-    if  ($ConfigFile -eq "") { $ConfigFile = "{0}\psCloudstack.config" -f $env:LocalAppData }
-    if (($ConfigFile -eq "") -or !(Test-Path "$ConfigFile")) { throw "No psCloudstack configuration file found" }
-    # ======================================================================================================================
-    #  Read the config file connect details and store them in the connect object
-    # ----------------------------------------------------------------------------------------------------------------------
-    Write-Verbose "Reading psCloudstack config file"
-    [xml]$cfg = gc "$ConfigFile"
-    $Connect = $cfg.configuration.connect
-    $Api = $cfg.configuration.api
-    # ======================================================================================================================
-    #  Create the output object and add all info to it
-    # ----------------------------------------------------------------------------------------------------------------------
-    $cfgObject = New-Object -TypeName PSObject
-    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name File         -Value $ConfigFile
-    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Server       -Value $Connect.server.address
-    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UseSSL       -Value ($Connect.server.usessl -eq "true")
-    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name SecurePort   -Value $Connect.server.secureport
-    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UnsecurePort -Value $Connect.server.unsecureport
-    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name CommandStyle -Value $Connect.command.style
-    if ($ShowKeys)
-    {
-        $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Api -Value $Connect.authentication.api
-        $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Key -Value $Connect.authentication.key
-    }
-    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Version -Value $Api.version
-    $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Count   -Value $Api.count
-    # ======================================================================================================================
-    #  All connection details are collected, write the object
-    # ----------------------------------------------------------------------------------------------------------------------
-    Write-Output $cfgObject
-}
-
-############################################################################################################################
-#  Initialize-CSConfig
-#    Creates or updates the connection configuration for the Cloudstack Management server and api calls
-#    This configuration is used by Connect-CSServer to establish a first connection and to verify the api status
-############################################################################################################################
-function Initialize-CSConfig {
-<# 
- .Synopsis
-    Creates or updates the config file required to communicate with the Cloudstack management server
-
- .Description
-    This function creates or updates the connection config file. This file (default:
-    %LOCALAPPDATA%\psCloudstack.config) contains the required connection info for communicating with
-    the Cloudstack Management server, either via the authenticated or unauthenticated port.
-
-    The config file also contains information about the last connection like Cloudstack version,
-    the number of available api's. Only api's the user is entitled to are collected and counted.
-  
  .Parameter Server
     The name or IP address of the Cloudstack management server. This is a required parameter.
     If a config file is updated the server IP address will be used to verify the correctness
@@ -188,120 +56,416 @@ function Initialize-CSConfig {
     Use https when connecting to the Cloudstack management server. Only used when requesting access
     via the secured port.
 
- .Parameter CommandStyle
-    CommandStyle can be Windows or Unix and specifies how Cloudstack booleans are treated (default: Windows)
-    Windows style: boolean parameters like listAll are true when specified and not used when not specified
-    Unix style: boolean parameters like listAll must be given a value (true or false)
-
- .Parameter Config
+ .Parameter ConfigFile
     The path and name of a config file to which the input information is written.
-    By default %LOCALAPPDATA%\psCloudstack.config will be used, but a different file can be specified.
-    The full filespec is also saved in %CSCONFIGFILE% and is used by Get-CSConfig in case the
-    default file cannot be found.
+    By default $Env:LocalAppData\psCloudstack.config will be used, but a different file can be specified.
 
  .Outputs
     None
+
     
  .Notes
-    psCloudstack   : V2.2.0
-    Function Name  : Initialize-CSConfig
+    psCloudstack   : V3.0.0
+    Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
 
-  .Example
-    # Create/Update the content of the default config file
-
-    C:\PS> Initialize-CSConfig -Server www.xxx.yyy.zzz -Api xxxxxxx -Secret yyyyyyyyy
-
 #>
 [CmdletBinding()]
-param([parameter(Mandatory=$true)][string]$Server,
-      [Parameter(Mandatory = $false)][int]$SecurePort=8080,
-      [Parameter(Mandatory = $false)][int]$UnsecurePort=8096,
+param([parameter(Mandatory = $true)][string]$Name,
+      [parameter(Mandatory = $false)][string]$NewName,
+      [parameter(Mandatory = $false)][string]$Server,
+      [Parameter(Mandatory = $false)][int]$SecurePort,
+      [Parameter(Mandatory = $false)][int]$UnsecurePort,
       [Parameter(Mandatory = $false)][string]$Apikey,
       [Parameter(Mandatory = $false)][string]$Secret,
       [Parameter(Mandatory = $false)][switch]$UseSSL,
-      [Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$CommandStyle="Windows",
-      [Parameter(Mandatory = $false)][string]$ConfigFile=("{0}\psCloudstack.config" -f $env:LocalAppData))
+      [Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.config" -f $env:LocalAppData))
     $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
     if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
     if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ======================================================================================================================
-    #  Local & Global variables
+    #  Verifying configuration file and if found make it the active one
     # ----------------------------------------------------------------------------------------------------------------------
-    $doUpdate = $false; $doUseSSL = ($UseSSL -and $true).ToString().ToLower()
-    $sysPing = New-Object System.Net.NetworkInformation.Ping
-    $ipRegex = "^\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b$"
+    if (($ConfigFile -eq "") -or !(Test-Path "$ConfigFile")) { Write-Error "No psCloudstack configuration file found"; Break }
     # ======================================================================================================================
-    #  Create an empty xml template to be used as 'staging' area for an existing config or as source for a new config
+    #  Read the config file connect details and isolate the data we need/want
     # ----------------------------------------------------------------------------------------------------------------------
-    [xml]$newCfg = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
-                    <configuration version=`"2.0`">
-                      <connect>
-                        <command style=`"$CommandStyle`" />
-                        <server address=`"`" secureport=`"$SecurePort`" unsecureport=`"$UnsecurePort`" usessl=`"true`" />
-                        <authentication api=`"`" key=`"`"/>
-                      </connect>
-                      <api version=`"`" count=`"`" />
-                    </configuration>"
-    $newConnect = $newCfg.configuration.connect
+    Write-Verbose "Reading psCloudstack config file"
+    [xml]$curCfg = gc "$ConfigFile"
+    $dataSet = $curCfg.configuration.connect|? Name -eq $Name
+    if (!$dataSet -and ($Name -eq "Default")) { $dataSet = $curCfg.configuration.connect[0] }
+    if (!$dataSet) { Write-Warning "No such config dataset `"$Name`""; break }
     # ======================================================================================================================
-    #  Verify the server by getting the server IP address. Try DNS lookup and if that fails try Ping
+    #  Update the requested fields and save the result
     # ----------------------------------------------------------------------------------------------------------------------
-    $ServerIP = $Server
-    if ($ServerIP -NotMatch $ipRegex)
+    if ($bndPrm.NewName -ne $null)      { $dataSet.Name = $NewName }
+    if ($bndPrm.Server -ne $null)       { $dataSet.server.address = $Server }
+    if ($bndPrm.SecurePort -ne $null)   { $dataSet.server.secureport = $SecurePort }
+    if ($bndPrm.UnsecurePort -ne $null) { $dataSet.server.unsecureport = $UnsecurePort }
+    if ($bndPrm.Apikey -ne $null)       { $dataSet.authentication.api = $Apikey }
+    if ($bndPrm.Secret -ne $null)       { $dataSet.authentication.key = $Secret }
+    if ($bndPrm.UseSSL -ne $null)       { $dataSet.server.usessl = $UseSSL.ToString() }
+    # ======================================================================================================================
+    #  All has been updated, save the result and exit
+    # ----------------------------------------------------------------------------------------------------------------------
+    $curCfg.Save($ConfigFile)
+    Write-Verbose "psCloudstack config has been updated"
+}
+
+############################################################################################################################
+#  Get-CSConfig
+#    Reads the configuration for the Cloudstack Management server and returns it as a system.object
+############################################################################################################################
+function Get-CSConfig {
+<# 
+ .Synopsis
+    Get the configuration and connection settings from the active or requested configuration file.
+
+ .Description
+    This function gets one ore more connection sets from the configuration file. This configuration file
+    contains the required connection info for connecting to a Cloudstack Management server, either via the
+    authenticated or unauthenticated port.
+
+    If no configuration file is specified, $Env:LocalAppData\psCloudstack.config will be used.
+
+ .Parameter Name
+    A reference name which will identify the connection data. If no name is specified, all data
+    will be returned.
+  
+ .Parameter ConfigFile
+    The path and name of a config file which contains the configuration and connection settings.
+
+ .Parameter ShowKeys
+    Show the API & Secret key in the output object.
+
+ .Outputs
+  psCloudstack.Config Object
+    A psCloudstack.Config System.Object which contains all collected settings.
+    - File             The active configurationfile
+    - Name             The reference name of the connection
+    - Server           The server to connect to
+    - UseSSL           Use https for connecting
+    - SecurePort       The secure port number
+    - UnsecurePort     The unsecure port number
+    - Api              The user api key (when requested)
+    - Key              The user secret key (when requested)
+    
+ .Notes
+    psCloudstack   : V3.0.0
+    Function Name  : Get-CSConfig
+    Author         : Hans van Veen
+    Requires       : PowerShell V3
+
+#>
+[CmdletBinding()]
+param([parameter(Mandatory = $false)][string[]]$Name = "Default",
+      [Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.config" -f $env:LocalAppData),
+      [parameter(Mandatory = $false)][switch]$All,
+      [parameter(Mandatory = $false)][switch]$ShowKeys)
+    $bndPrm = $PSBoundParameters
+    $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
+    $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
+    # ======================================================================================================================
+    #  Verifying configuration file and if found make it the active one
+    # ----------------------------------------------------------------------------------------------------------------------
+    if (($ConfigFile -eq "") -or !(Test-Path "$ConfigFile")) { Write-Error "No psCloudstack configuration file found"; Break }
+    # ======================================================================================================================
+    #  Read the config file connect details and isolate the data we need/want
+    # ----------------------------------------------------------------------------------------------------------------------
+    Write-Verbose "Reading psCloudstack config file"
+    [xml]$curCfg = gc "$ConfigFile"
+    if ($All) { $Name = $curCfg.configuration.connect|%{ $_.Name } }
+    foreach ($getName in $Name)
     {
-        try { $ServerIP = [System.Net.Dns]::GetHostAddresses("$Server")[0].IPAddressToString }
-        catch
+        $dataSet = $curCfg.configuration.connect|? Name -eq $getName
+        if (!$dataSet -and ($getName -eq "Default")) { $dataSet = $curCfg.configuration.connect[0] }
+        if (!$dataSet) { Write-Warning "No such config dataset `"$getName`""; continue }
+        # ==================================================================================================================
+        #  Per named dataset, store all requested details in the connect object and send it down the pipeline
+        # ------------------------------------------------------------------------------------------------------------------
+        $cfgObject = New-Object -TypeName PSObject
+        $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Name         -Value $dataSet.Name
+        $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Server       -Value $dataSet.server.address
+        $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UseSSL       -Value ($dataSet.server.usessl -eq "true")
+        $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name SecurePort   -Value $dataSet.server.secureport
+        $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UnsecurePort -Value $dataSet.server.unsecureport
+        if ($ShowKeys)
         {
-            try { $ServerIP = $($sysPing.Send("$Server").Address).IPAddressToString }
-            catch { throw "Cannot convert $Server to an IP address" }
+            $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Api      -Value $dataSet.authentication.api
+            $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Key      -Value $dataSet.authentication.key
         }
+        # ======================================================================================================================
+        #  All connection details are collected, write the object
+        # ----------------------------------------------------------------------------------------------------------------------
+        Write-Output $cfgObject
     }
-    if ($ServerIP -NotMatch $ipRegex) { throw "Cannot convert $Server to an IP address" }
+}
+
+############################################################################################################################
+#  Add-CSConfig
+#    Adds connection configuration information to the configuration file
+############################################################################################################################
+function Add-CSConfig {
+<# 
+ .Synopsis
+    Adds connection configuration information to the configuration file
+
+ .Description
+    This function is used to add connection configuration information to the configuration file.
+
+ .Parameter Name
+    A reference name which will identify the connection data.
+    A warning will be generated in case of a duplicate name
+
+ .Parameter Server
+    The name or IP address of the Cloudstack management server. This is a required parameter.
+    If a config file is updated the server IP address will be used to verify the correctness
+    of the existing content
+
+ .Parameter SecurePort
+    The API secure port number.
+
+ .Parameter UnsecurePort
+    The API unsecure port number.
+
+ .Parameter Apikey
+    The users apikey. This key will be, in combination with the users secret key, be converted
+    to a single hash value. This hash value will be stored in the config file.
+
+ .Parameter Secret
+    The users secret key. This key will be, in combination with the users api key, be converted
+    to a single hash value. This hash value will be stored in the config file.
+
+ .Parameter UseSSL
+    Use https when connecting to the Cloudstack management server. Only used when requesting access
+    via the secured port.
+
+ .Parameter ConfigFile
+    The path and name of a config file to which the input information is written.
+    By default $Env:LocalAppData\psCloudstack.config will be used, but a different file can be specified.
+
+ .Outputs
+    None
+    
+ .Notes
+    psCloudstack   : V3.0.0
+    Function Name  : Add-CSConfig
+    Author         : Hans van Veen
+    Requires       : PowerShell V3
+
+  .Example
+    # Create/Update the content of the default config file
+    C:\PS> Add-CSConfig -Server www.xxx.yyy.zzz -Api xxxxxxx -Secret yyyyyyyyy
+
+#>
+[CmdletBinding()]
+param([parameter(Mandatory = $false)][string]$Name = "Default",
+      [parameter(Mandatory = $true)][string]$Server,
+      [Parameter(Mandatory = $false)][int]$SecurePort = 8080,
+      [Parameter(Mandatory = $false)][int]$UnsecurePort = 8096,
+      [Parameter(Mandatory = $true)][string]$Apikey,
+      [Parameter(Mandatory = $true)][string]$Secret,
+      [Parameter(Mandatory = $false)][switch]$UseSSL = "true",
+      [Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.config" -f $env:LocalAppData))
+    $bndPrm = $PSBoundParameters
+    $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
+    $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ======================================================================================================================
-    #  Check the config file. If it exists update the new config template with its information
+    #  Check the config file. If it exists update it with the information
     # ----------------------------------------------------------------------------------------------------------------------
     if (Test-Path "$ConfigFile")
     {
+        [xml]$curCfg = gc "$ConfigFile"
+        if ($curCfg.configuration.connect|? Name -eq $Name) { Write-Warning "Configuration data for $Name allready present, exiting...."; break }
         Write-Verbose "Update existing Cloudstack config file"
-        [xml]$curCfg = gc "$ConfigFile"        
-        $curConnect = $curCfg.configuration.connect
-        if ($curConnect.command.style.length -gt 0)       { $newConnect.command.style       = $curConnect.command.style }
-        if ($curConnect.server.address.length -gt 0)      { $newConnect.server.address      = $curConnect.server.address }
-        if ($curConnect.server.usessl.length -gt 0)       { $newConnect.server.usessl       = $curConnect.server.usessl }
-        if ($curConnect.server.secureport.length -gt 0)   { $newConnect.server.secureport   = $curConnect.server.secureport }
-        if ($curConnect.server.unsecureport.length -gt 0) { $newConnect.server.unsecureport = $curConnect.server.unsecureport }
-        if ($curConnect.authentication.api.length -gt 0)  { $newConnect.authentication.api  = $curConnect.authentication.api }
-        if ($curConnect.authentication.key.length -gt 0)  { $newConnect.authentication.key  = $curConnect.authentication.key }
     }
-    else { Write-Verbose "Create new Cloudstack config file" }
-    # ======================================================================================================================
-    #  Check the command line and see whether config settings are overruled. Save and activate the config when done
-    # ----------------------------------------------------------------------------------------------------------------------
-    if ($bndPrm.CommandStyle.length -gt 0) { $newConnect.command.style = $CommandStyle }
-    if ($bndPrm.Server.length -gt 0)       { $newConnect.server.address = $Server }
-    if ($bndPrm.UseSSL)                    { $newConnect.server.usessl = "true" }
-    if ($bndPrm.SecurePort -gt 0)          { $newConnect.server.secureport = "$SecurePort" }
-    if ($bndPrm.UnsecurePort -gt 0)        { $newConnect.server.unsecureport = "$UnsecurePort" }
-    if ($bndPrm.Apikey.length -gt 0)       { $newConnect.authentication.api = $Apikey }
-    if ($bndPrm.Secret.length -gt 0)       { $newConnect.authentication.key = $Secret }
-    rv Apikey; rv Secret
-    Write-Verbose "Update and activate connection configuration"
-    $newCfg.Save($ConfigFile); Set-CSConfig "$ConfigFile"
-    # ======================================================================================================================
-    #  Now for the 'exiting' stuff. Get the list of entitled api's from the server and store version and count
-    #  Only perform this action if we have a apikey/secretkey pair!
-    # ----------------------------------------------------------------------------------------------------------------------
-    if (($newConnect.authentication.api.length -gt 0) -and ($newConnect.authentication.key.length -gt 0))
+    else
     {
-        $apiInfo = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
-        Update-ApiInfo -apiVersion $apiInfo."cloud-stack-version" -apiCount $apiInfo.Count
+        Write-Verbose "Creating new Cloudstack config file"
+        [xml]$curCfg = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
+                        <configuration version=`"3.0`">
+                        </configuration>"
     }
+    # ======================================================================================================================
+    # Get the command line config settings.
+    # ----------------------------------------------------------------------------------------------------------------------
+    [xml]$newCfg = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
+                    <configuration version=`"3.0`">
+                      <connect name=`"$Name`">
+                        <server address=`"$Server`" secureport=`"$SecurePort`" unsecureport=`"$UnsecurePort`" usessl=`"$UseSSL`"/>
+                        <authentication api=`"$Apikey`" key=`"$Secret`"/>
+                      </connect>
+                    </configuration>"
+    # ======================================================================================================================
+    #  Append the new config settings to the existing config and save it.
+    # ----------------------------------------------------------------------------------------------------------------------
+    Foreach ($Node in $newCfg.DocumentElement.ChildNodes) { $res = $curCfg.DocumentElement.AppendChild($curCfg.ImportNode($Node, $true)) }
+    $curCfg.Save($ConfigFile)
+    Write-Verbose "psCloudstack config has been updated"
     # ----------------------------------------------------------------------------------------------------------------------
 }
+
+
+############################################################################################################################
+#  Remove-CSConfig
+#    Removes a named connection dataset from the configuration file
+############################################################################################################################
+function Remove-CSConfig {
+<# 
+ .Synopsis
+    Remove connection settings from a psCloudstack configuration file.
+
+ .Description
+    This function removes an existing connection dataset from a psCloudstack configuration file.
+
+ .Parameter Name
+    A reference name which will identify the connection data. The function will terminate when no name is specified.
+  
+ .Parameter ConfigFile
+    The path and name of a config file which contains the configuration and connection settings.
+
+ .Outputs
+    None
+    
+ .Notes
+    psCloudstack   : V3.0.0
+    Function Name  : Remove-CSConfig
+    Author         : Hans van Veen
+    Requires       : PowerShell V3
+
+#>
+[CmdletBinding()]
+param([parameter(Mandatory=$true)][string[]]$Name,
+      [Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.config" -f $env:LocalAppData))
+    $bndPrm = $PSBoundParameters
+    $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
+    $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
+    # ======================================================================================================================
+    #  Verifying configuration file and if found make it the active one
+    # ----------------------------------------------------------------------------------------------------------------------
+    if (($ConfigFile -eq "") -or !(Test-Path "$ConfigFile")) { Write-Error "No psCloudstack configuration file found"; Break }
+    # ======================================================================================================================
+    #  Read the config file connect details and isolate the data we need/want
+    # ----------------------------------------------------------------------------------------------------------------------
+    Write-Verbose "Reading psCloudstack config file"
+    [xml]$curCfg = gc "$ConfigFile"
+    foreach ($rmvName in $Name)
+    {
+        $dataSet = $curCfg.configuration.connect|? Name -eq $rmvName
+        if (!$dataSet) { Write-Warning "No such config dataset `"$rmvName`""; continue }
+        # ==================================================================================================================
+        #  Remove the dataset from the config set and save the resulting set
+        # ------------------------------------------------------------------------------------------------------------------
+        Write-Verbose "Removing `"$rmvName`" from the psCloudstack config file"
+        $remCfg = $curCfg.configuration.RemoveChild($dataSet)
+    }
+    $curCfg.Save($ConfigFile)
+    Write-Verbose "psCloudstack config has been updated"
+}
+
+############################################################################################################################
+#  Convert-CSConfig
+#    Creates or updates the connection configuration for the Cloudstack Management server and api calls to V3
+#    This configuration is used by Connect-CSServer to establish a first connection and to verify the api status
+############################################################################################################################
+function Convert-CSConfig {
+<# 
+ .Synopsis
+    Converts a pre-V3 config file to a V3 config file
+
+ .Description
+    As of psCloudstack V3 there is only one configuration file: $Env:LOCALAPPDATA\psCloudstack.config
+    (%LOCALAPPDATA%\psCloudstack.config) Pre-V3 configuration files can be converted to the V3 file
+    format using the Convert-CSConfig function. Without specifying a source file and configuration
+    name the current psCloudstack.config file will be read, converted and updated.
+    This connection configuration will be named "Default"
+
+    Specifying another configuration file will read, converted and appended its data to the (new)
+    default configuration file. If no name is specified, "Default" will be used, but if this name
+    already exists in the configuration file, the name will be appended with a "+" sign.
+
+ .Parameter ConfigFile
+    The path and name of an existing configuration file from which the information is read.
+
+ .Parameter Name
+    A reference name which will identify the converted connection data. The name will be used by
+    Connect-CSManager to load and use the required configuration. When the name already exists in
+    the default configuration file, the name will be appended with a "+" sign.
+
+ .Outputs
+    None
+    
+ .Notes
+    psCloudstack   : V3.0.0
+    Function Name  : Convert-CSConfig
+    Author         : Hans van Veen
+    Requires       : PowerShell V3
+
+  .Example
+    # Update the content of the default config file with converted pre-V3 data
+
+    C:\PS> Convert-CSConfig -Conf C:\Users\......\AppData\Local\psCloudstack.config -Name "......"
+
+#>
+[CmdletBinding()]
+param([Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.config" -f $env:LocalAppData),
+      [Parameter(Mandatory = $false)][string]$Name = "Default")
+    $bndPrm = $PSBoundParameters
+    $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
+    $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
+    # ======================================================================================================================
+    #  Convert the configuration file
+    # ----------------------------------------------------------------------------------------------------------------------
+    if (!(Test-Path "$ConfigFile")) { Write-Error "Configuration file `"$ConfigFile`" not found"; Break }
+    [xml]$curCfg = gc "$ConfigFile"
+    if ($curCfg.configuration.version -lt 3.0)
+    {
+        Write-Verbose "Converting config file `"$ConfigFile`""
+        $curCfg.configuration.version = "3.0"
+        $curCfg.configuration.connect.SetAttribute("name", $Name)
+        $apiCfg = $curCfg.configuration.RemoveChild($curCfg.SelectSingleNode('//api'))
+    }
+    # ======================================================================================================================
+    #  If it is the default file than save it and exit
+    # ----------------------------------------------------------------------------------------------------------------------
+    $defConfigFile = "{0}\psCloudstack.config" -f $env:LocalAppData
+    if ($ConfigFile -eq $defConfigFile)
+    {
+        $curCfg.Save($defConfigFile)
+        Write-Verbose "default psCloudstack config has been updated"
+        break
+    }
+    # ======================================================================================================================
+    #  Merge the converted content with that of the default file
+    # ----------------------------------------------------------------------------------------------------------------------
+    Write-Verbose "Merging psCloudstack config data"
+    [xml]$defCfg = gc "$defConfigFile"
+    if ($defCfg.configuration.version -lt 3.0)
+    {
+        Convert-CSConfig -ConfigFile "$defConfigFile"
+        [xml]$defCfg = gc "$defConfigFile"
+    }
+    if ($defCfg.configuration.connect.name -eq $curCfg.configuration.connect.name)
+    {
+        $curCfg.configuration.connect.name += "+"
+        Write-Warning "Duplicate name found, using `"$($curCfg.configuration.connect.name)`""
+    }
+    Foreach ($Node in $curCfg.DocumentElement.ChildNodes) { $res = $defCfg.DocumentElement.AppendChild($defCfg.ImportNode($Node, $true)) }
+    $defCfg.Save($defConfigFile)
+    Write-Verbose "default psCloudstack config has been updated"
+}
+
 ############################################################################################################################
 #  Invoke-CSApiCall
 #    This function will use the stored connection info to build and issue a valid Cloudstack api call
@@ -353,14 +517,14 @@ function Invoke-CSApiCall {
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V2.2.0
+    psCloudstack   : V3.0.0
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V3
 
 #>
 [CmdletBinding()]
-param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
+param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
       [Parameter(Mandatory = $false)][string[]]$Parameters=$null,
       [Parameter(Mandatory = $false)][ValidateSet("XML","JSON")] [string]$Format="XML",
       [Parameter(Mandatory = $false)][string]$Server,
@@ -384,7 +548,7 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
         if ($errMsg -match "^\d+") { $errCode = $matches[0]; $errMsg = $errMsg.SubString($errCode.Length) }
         Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow
         [xml]$response = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
-                          <$cmdIdent cloud-stack-version=`"$csVersion`">
+                          <$cmdIdent psCloudstack-version=`"3.0.0`">
                             <displaytext>$errMsg</displaytext>
                             <errorcode>$errCode</errorcode>
                             <success>false</success>
@@ -397,10 +561,13 @@ param([parameter(Mandatory=$true,ValueFromPipeline=$true)][string]$Command,
     [void][System.Reflection.Assembly]::LoadWithpartialname("System.Web")
     $crypt = New-Object System.Security.Cryptography.HMACSHA1
     # ======================================================================================================================
-    #  Get the connection details from the config file. Then see whether there are overrides....
+    #  Get the connection details from the config file.
     # ----------------------------------------------------------------------------------------------------------------------
-    $Connect = Get-CSConfig -ShowKeys
-    $csVersion = $Connect.Version
+    if ($CSConfigDataSet.length -gt 0) { $connectName = $CSConfigDataSet } else { $connectName = "Default" }
+    $Connect = Get-CSConfig -ShowKeys -Name $connectName
+    # ======================================================================================================================
+    #  Use the config details to see whether there are overrides....
+    # ----------------------------------------------------------------------------------------------------------------------
     if ($Server -ne "") { $Connect.Server = $Server }
     if ($SecurePort -ne 0) { $Connect.SecurePort = $SecurePort }
     if ($UnsecurePort -ne 0) { $Connect.UnsecurePort = $UnsecurePort }
@@ -489,13 +656,10 @@ function Connect-CSManager {
 
     When running this function with -Verbose the async api functions will be marked with a (A).
   
- .Parameter CommandStyle
-    CommandStyle can be Windows or Unix and it causes Cloudstack booleans to be processed differently.
-    Windows style: boolean parameters like listAll are true when specified and not used when not specified , no value required.
-    Unix style: boolean parameters like listAll must be given a value (true or false).
-      
-    The style setting can also be specified in the config file!
-
+ .Parameter Name
+    Use the named connetion data from the configuration file. If no name is specified, the dataset marked
+    "Default" will be used. If that does not exist the 1st dataset in the file will be used.
+  
  .Parameter Silent
     Suppress the welcome message
 
@@ -503,9 +667,9 @@ function Connect-CSManager {
     All available Cloudstack api calls as PowerShell functions
 
  .Example
-    # Connect and prepare for windows style api functions
+    # Connect and create the api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V2.2.0 - Generating 458 api functions for you
+    Welcome to psCloudstack V3.0.0 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -513,27 +677,15 @@ function Connect-CSManager {
     accountid           : f20c65de-74b8-11e3-a3ac-0800273826cf
     accounttype         : ..........................
     
- .Example
-    # Connect and prepare for unix style api functions
-    C:\PS> Connect-CSManager -CommandStyle Unix
-    Welcome to psCloudstack V2.2.0 - Generating 458 api functions for you
-    
-    C:\PS> listUsers -listall true
-
-    account             : admin
-    accountid           : f20c65de-74b8-11e3-a3ac-0800273826cf
-    accounttype         : ..........................
-    
-    
   .Notes
-    psCloudstack   : V2.2.0
+    psCloudstack   : V3.0.0
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V3
 
 #>
 [CmdletBinding()]
-param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$CommandStyle,[switch]$Silent)
+param([parameter(Mandatory = $false)][string]$Name = "Default", [parameter(Mandatory = $false)][switch]$Silent)
     $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
@@ -541,33 +693,32 @@ param([Parameter(Mandatory = $false)][ValidateSet("Windows","Unix")] [string]$Co
     if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ==========================================================================================================================
     #   The api parameter types differ in name from the Powershell types. Create a translation table to deal with this.
-    #   The Windows and Unix command styles only differ on 1 thing: Windows switch is true when specified
     #   Beware: The unix date format yyyy-MM-dd has no counterpart in Powershell, therefore its replaced by type string
     # --------------------------------------------------------------------------------------------------------------------------
     $trnTable  = @{ "boolean" = "switch" ; "date"  = "string" ; "integer" = "int32"  ; "list" = "string[]" ; "long"   = "int64" ;
                     "map"     = "string" ; "short" = "int16"  ; "string"  = "string" ; "uuid" = "string"   ; "tzdate" = "string" }
     # ==========================================================================================================================
-    #   Load the config file and determine which command style to use (commandline overrules config, default is Windows)
-    #   When unix is selected, convert the translation table switch type to string.
+    #   Load the config file
     # --------------------------------------------------------------------------------------------------------------------------
-    $Connect = Get-CSConfig -ShowKeys
-    $apiVersion = $Connect.Version
-    $apiCount = $Connect.Count
-    $cmdStyle = $Connect.command.style
-    if ($CommandStyle.length -gt 0) { $cmdStyle = $CommandStyle }
-    if ($cmdStyle.length -eq 0)     { $cmdStyle ="Windows" }
-    if ($cmdStyle -eq "Unix")       { $trnTable.boolean = "string" }
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V3.0.0, ..." -NoNewLine }
+    $global:CSConfigDataSet = $Name
+    $Connect = Get-CSConfig -ShowKeys -Name $CSConfigDataSet
+    if ($Connect.Count -gt 1)
+    {
+        $defConnect = $Connect|? Name -eq "Default"
+        if (!$defConnect) { $defConnect = $Connect[0] }
+        rv Connect; $Connect = $defConnect
+    }
     # ==========================================================================================================================
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # --------------------------------------------------------------------------------------------------------------------------
-    Write-Verbose "Collecting api function details......"
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V2.2.0" -NoNewLine }
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
     if ($laRSP.success -eq "false") { return $laRSP }
-    if (($apiVersion -ne $laRSP.'cloud-stack-version') -or ($apiCount -ne $laRSP.Count)) { Update-ApiInfo -apiVersion $laRSP."cloud-stack-version" -apiCount $laRSP.Count }
-    if (!$Silent) { Write-Host " - Generating $($laRSP.Count) api functions for you" }
-    Write-Verbose "Generating $($laRSP.Count) api functions...... ($cmdStyle style)"
+    if (!$Silent) { Write-Host "generating $($laRSP.Count) api functions for you" }
+    Write-Verbose "Collecting api function details for $($Connect.Name)"
     $apiCnt = 0
+    $global:pscLR = @{}
+    foreach ($api in $laRSP.api) { if ($api.name.StartsWith("list")) { if ($api.related.length -gt 0) { $api.related.split(',')|%{ $pscLR[$_]=$api.name }}}}
     foreach ($api in $laRSP.api)
     {
         # -------------------------------------------------------------------------------
@@ -626,9 +777,10 @@ function global:$apiName {
         if ($asyncApi)
         {
             $apiFunction += " .Parameter NoWait`r`n     Do not wait for the job to complete. Return the result(s) immediate after starting the job`r`n"
-            $prmList += "[Parameter(Mandatory=`$false,ParameterSetName='NoWait')][switch]`$NoWait,`r`n      "
+            $prmList     += "[Parameter(Mandatory=`$false,ParameterSetName='NoWait')][switch]`$NoWait,`r`n      "
             $apiFunction += " .Parameter Wait`r`n     Wait xxx seconds for the job to complete before returning results. (Default: Wait for ever)`r`n"
-            $prmList += "[Parameter(Mandatory=`$false,ParameterSetName='Wait')][int32]`$Wait=-1,`r`n      "
+            $prmList     += "[Parameter(Mandatory=`$false,ParameterSetName='Wait')][int32]`$Wait=-1,`r`n      "
+            $listApi      = $pscLR[$apiName]
         }
         if ($prmList -ne "") { $prmList = $prmList.TrimEnd(",`r`n      ") }
         $apiFunction += "`r`n .Outputs`r`n  System.Object`r`n"
@@ -638,7 +790,7 @@ function global:$apiName {
 
 
  .Notes
-    psCloudstack   : V2.2.0
+    psCloudstack   : V3.0.0
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -665,9 +817,9 @@ param($prmList)
     # ======================================================================================================================
     #  Verify build and current config. Reload psCloudstack if there is no match
     # ----------------------------------------------------------------------------------------------------------------------
-    `$buildKey = "$($Connect.Api)"
-    `$currentCfg = Get-CSConfig -ShowKeys
-    if (`$buildKey -ne `$currentCfg.Api)
+    `$buildKey   = "$($Connect.Api)"
+    `$currentKey = (Get-CSConfig -ShowKeys -Name `$CSConfigDataSet).Api
+    if (`$buildKey -ne `$currentKey)
     {
         Write-Warning "Invalid config detected, reloading psCloudstack...."
         Import-Module -Name  psCloudstack -Force -ea SilentlyContinue
@@ -703,8 +855,6 @@ param($prmList)
     Write-Verbose "Async job started with id: `$jobId"
     `$jobResult = (Invoke-CSApiCall queryAsyncJobResult jobid=`$jobId -Verbose:`$false -Debug:`$false).queryasyncjobresultresponse
     `$jobSts = `$jobResult.jobstatus
-    `$instanceName = "list{0}*" -f `$jobResult.jobinstancetype
-    `$functionName = (ls function:`$instanceName -name -ea SilentlyContinue)
     if (!`$NoWait)
     {
         Write-Host "Waiting for asynchronous job to complete"
@@ -734,7 +884,7 @@ param($prmList)
         return
     }
     Write-Output `$jobResult
-    if ((`$functionName.Count -eq 1)) { Write-Output (.`$functionName -id `$jobResult.jobinstanceId) }
+    if ("$listApi".length -gt 0) { Write-Output (. $listApi -id `$jobResult.jobinstanceId) }
     else { Write-Warning "Cannot determine related list function for $apiName" }
     return
 }
@@ -803,24 +953,3 @@ param($prmList)
 ############################################################################################################################
 ####                                      Internal-Only (Non-Exported) Functions                                        ####
 ############################################################################################################################
-#  Update-ApiInfo
-#    This is a non-exported function which is used to update the Api info in the active config file
-############################################################################################################################
-function Update-ApiInfo {
-param([Parameter(Mandatory = $true)][string]$apiVersion,[Parameter(Mandatory = $true)][string]$apiCount)
-    # ======================================================================================================================
-    #  Open the active config file
-    # ----------------------------------------------------------------------------------------------------------------------
-    $ConfigFile = $env:CSCONFIGFILE
-    if (($ConfigFile -eq "") -or !(Test-Path "$ConfigFile")) { throw "No psCloudstack configuration file found" }
-    Write-Verbose "Update Api info using: $ConfigFile"
-    [xml]$curCfg = gc "$ConfigFile"
-    # ======================================================================================================================
-    #  Get the api details and store them
-    # ----------------------------------------------------------------------------------------------------------------------
-    $curCfg.configuration.api.version = $apiVersion
-    $curCfg.configuration.api.count   = $apiCount
-    Write-Verbose "Updating the api details"
-    $curCfg.Save($ConfigFile)
-    # ----------------------------------------------------------------------------------------------------------------------
-}

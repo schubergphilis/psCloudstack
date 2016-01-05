@@ -20,7 +20,7 @@
 ModuleToProcess = 'psCloudstack.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.2.0'
+ModuleVersion = '3.0.0'
 
 # ID used to uniquely identify this module
 GUID = 'e98607bf-a84b-4453-96fc-7d791bf2e001'
@@ -74,7 +74,7 @@ FormatsToProcess = @()
 NestedModules = @()
 
 # Functions to export from this module
-FunctionsToExport = 'Connect-CSManager','Get-CSConfig','Initialize-CSConfig','Invoke-CSApiCall','Set-CSConfig'
+FunctionsToExport = 'Add-CSConfig','Get-CSConfig','Set-CSConfig','Remove-CSConfig','Convert-CSConfig','Connect-CSManager','Invoke-CSApiCall'
 
 # Cmdlets to export from this module
 CmdletsToExport = '*'

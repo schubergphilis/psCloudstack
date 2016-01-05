@@ -1,62 +1,56 @@
 #psCloudstack#
-A PowerShell module which dynamically creates PowerShell functions from all available Cloudstack api's      
-Copy the psCloudstack.* files to one of the folders listed in the PSModulePath environment variable.
+A PowerShell module which dynamically creates PowerShell functions for all (to the user) available Cloudstack api's.
+
+### Installation###
+Copy **all** files to one of the following folders:
+```
+$Home\Documents\WindowsPowerShell\modules\psCloudstack (%UserProfile%\Documents\WindowsPowerShell\Modules\psCloudstack)      Private installation of psCloudstack
+$Env:ProgramFiles\WindowsPowerShell\Modules\psCloudstack (%ProgramFiles%\WindowsPowerShell\Modules\psCloudstack)               Public installation of psCloudstack
+```
+Do NOT use $PSHome\Modules (%Windir%\System32\WindowsPowerShell\v1.0\Modules) This location is reserved for modules that ship with Windows.
 
 ####To activate:####
-Beginning in Windows PowerShell 3.0, installed modules are automatically imported to the session when you use any commands or
-providers in the module. However, you can still use the Import-Module command to import the psCloudstack module
+Beginning in Windows PowerShell 3.0, installed modules are automatically imported to the session when you use any commands or providers in the module. However, you can still use the Import-Module command to import the psCloudstack module
 
-####Description:####
-Coding PowerShell functions for all available Cloudstack api's.... there are more than 450 of them now!        
-You probably think the guy is insane or has to much spare time. I am addicted, but it's neither of that.      
-I do agree: coding 450+ functions manually is insane and that's why I came up with psCloudstack.
+###Description:###
+Coding PowerShell functions for all available Cloudstack api's.... there are more than 450 of them now! You probably think the guy is insane or has to much spare time. I am addicted, but it's neither of that. I do agree: coding 450+ functions manually is insane and that's why I came up with psCloudstack.
 
 ###The Base Functions###
-The psCloudstack module consists of 5 functions which form the base of psCloudstack, and to get things
-working you can use the following scenario:
-  - Initialize-CSConfig  ---    Create/Update a psCloudstack configuration file and make it active
-  - Get-CSConfig         ---    Evaluate the active psCloudstack configuration file
-  - Connect-CSManager    ---    Build all entitled api functions  
-From this moment on you can use the api functions. See the remainder of this file and CHANGES and EXAMPLES for additional information.
+The psCloudstack module consists of 7 base (static) functions which form the core of psCloudstack.
 
+#####1. Convert-CSConfig#####
+    Convert-CSConfig [-ConfigFile <string>] [-Name <string>]
+As of psCloudstack V3 there is only one configuration file: $Env:LOCALAPPDATA\psCloudstack.config (%LOCALAPPDATA%\psCloudstack.config)
+Pre-V3 configuration files can be converted to the V3 file format using the Convert-CSConfig function. Without specifying a source file and configuration name the current psCloudstack.config file will be read, converted and updated. This connection configuration will be named "Default"
 
-#####1. Initialize-CSConfig#####
-This function creates or updates the psCloudstack connection config file. This file (default: %LOCALAPPDATA%\psCloudstack.config)
-contains the required connection info for communicating with the Cloudstack Management server, either via the authenticated or
-unauthenticated port. It also contains some information about the Cloudstack like the version and number of available api's.
+Specifying another configuration file will read, converted and appended its connection data to the (new) default configuration file. If no connection name is specified "Default" will be used, but if the connection name already exists in the configuration file, the name will be appended with a "+" sign. You can use a standard editor (or the Set-CSConfig function) to modify this name.
 
-Only api's the user is entitled to are collected and counted!
+#####2. Add-CSConfig#####
+    Add-CSConfig [-Name <string>] -Server <string> [-SecurePort <number>] [UnsecurePort <number>] -Apikey <string> -Secret <string> [-UseSSl] [-ConfigFile <string>]
+Add-CSConfig kind of replaces the former Initialize-CSConfig function. It is used to add psCloudstack connection configurations to the config file.
 
-Required: the name of the Cloudstack management server, the port numbers for the secure and unsecured port (defaults are 808 & 8096),
-and your API and secret key.
+If "Name" already exists in the configuration file, a warning will be shown and the specified name will be appended with a "+". You can use a standard editor (or the Set-CSConfig function) to modify this name.
 
-Use the following command to create the default psCloudstack config file:
-```
-Initialize-CSConfig -Server <String> [-SecurePort <Int32>] [-UnsecurePort <Int32>] -Apikey <String> -Secret <String>
-```
-You can also add -UseSSL to the command if you want to use https for calls via the secured port (unsecured is always http)      
-Furthermore you can use -Config to specify a file of your own.
+#####3. Remove-CSConfig#####
+    Remove-CSConfig -Name <string>,... [-ConfigFile ....]
+Remove-CSConfig removes one or more named connections from the psCloudstack configuration file.
 
+#####4. Get-CSConfig#####
+    Get-CSConfig [-Name <string>,...] [-ConfigFile <String>] [-ShowKeys] [-All]
+Without any parameters it will collect the 'default' connection info.
+Using -Name will show tyhe info for the requested connection names, while -All will show all connection configurations.
 
-#####2. Get-CSConfig#####
-This function is used by the *Invoke-CSApiCall* and *Connect-CSManager* functions to retrieve the content from the active       
-configuration file. When used interactively, all info will be displayed with exception of the api and secret key.       
-If this information is required, use -ShowKeys on the command line.
-```
-Get-CSConfig [-ConfigFile <String>] [-ShowKeys]
-```
+When used interactively, all info will be displayed with exception of the api key and the secret key. If this information is required, use -ShowKeys on the command line.
+
 By using -ConfigFile the content of another psCloudstack config file can be displayed.
 
+#####5. Set-CSConfig#####
+    Set-CSConfig -Name <string> [-NewName <string>] [-Server <string>] [-SecurePort <number>] [UnsecurePort <number>] [-Apikey <string>] [-Secret <string>] [-UseSSl] [-ConfigFile <string>]
+Set-CSConfig updates/modifies existsing psCloudstack connection configurations.
 
-#####3. Set-CSConfig#####
-Set the CSCONFIGFILE environment variable to the specified or default value (Default: %LOCALAPPDATA%\psCloudstack.config)       
-This environment variable then specifies the active configuration and is used as such by the other psCloudstack functions.      
-```
-Set-CSConfig [-ConfigFile <String>]
-```
+If "NewName" already exists in the configuration file, a warning will be shown and the action will be terminated.
 
-
-#####4. Connect-CSManager#####
+#####6. Connect-CSManager#####
 This function (and the next) are the core of psCloudstack. As mentioned before, it is impossible to code 450+ functions manually without getting RSI (or worse).
 
 Connect-CSManager uses the Cloudstack listApis api call to collect the details of *all entitled api's* and it will turn them automatically into PowerShell functions.
@@ -65,9 +59,8 @@ All this information is pasted into a (Here-String based) **global** function te
 
 ```
 PS C:\> Connect-CSManager -Verbose
-VERBOSE: Collecting api function details......
-Welcome to psCloudstack V2.0 - Generating xxx api functions for you (Windows style)
-VERBOSE: Generating xxx api functions...... (Windows style)
+VERBOSE: Collecting api function details for Default
+Welcome to psCloudstack V3.0.0, generating 266 api functions for you
 VERBOSE:  001 - listNetworkACLs
 VERBOSE:  002 - reconnectHost (A)
 VERBOSE:  003 - createCondition (A)
@@ -77,34 +70,20 @@ VERBOSE:  006 - listNiciraNvpDeviceNetworks
           ...
           ...
           ...
-```   
+
 Functions marked with an (A) use async api calls which only return job information which can be used to retrieve information of the the actual request target.
 For example: deployVirtualMachine will return an item named "jobinstanceid", this is the id you can use with listVirtualMachines.
 By default async function will wait for the job to complete, specifying -Wait xxx  will cause the function to wait for max. xxx seconds before returning the
 job details. Use -NoWait if you do not want to wait at all.
- 
-Connect-CSManager also accepts the -CommandStyle parameter which can be used to select either Windows or Unix type boolean handeling.  
-- Windows style: boolean parameters like listAll are true when specified and not used when not specified , no value required.
-- Unix style: boolean parameters like listAll must be given a value (true or false).
-      
-This option can also be set via the config file, in the <connect> section the line <command style="xxxxxx" /> has been added for this.  
-
- 
-#####5. Invoke-CSApiCall#####
-This function contains the actual api call logic. An Cloudstack api call has to be formatted in a specific way and      
-signed using the users api & secret key. This process is described in detail in the "Cloudstack API Developer's Guide"      
-chapter "Calling the Cloudstack API".
-
-Invoke-CSApiCall is used by every api function created via Connect-CSManager (which uses it to get all the available api's),
-but it can also be used interactively.
-
-```
-Invoke-CSApiCall [-Command] <String> [-Parameters <String[]>] [-Format <String>] [-Server <String>] [-SecurePort <Int32>]
-                 [-UnsecurePort <Int32>] [-Apikey <String>] [-Secret <String>] [-UseSSL] [-UseUnsecure]
 ```
 
-At least the command must be specified and optional some parameters to the command. The other parameters can be used to override 
-the settings from the active configuration file.        
+#####7. Invoke-CSApiCall#####
+    Invoke-CSApiCall -Command <String> [-Parameters <String[]>] [-Format <string>] [-Server <String>] [-[Un]SecurePort <Int32>] [-Apikey <String>] [-Secret <String>] [-UseSSL] [-UseUnsecure]
+This function contains the actual api call logic. An Cloudstack api call has to be formatted in a specific way and signed using the users api & secret key. This process is described in detail in the "Cloudstack API Developer's Guide" chapter "Calling the Cloudstack API".
+
+Invoke-CSApiCall is used by every api function created via Connect-CSManager (which uses it to get all the available api's), but it can also be used interactively.
+
+At least the command must be specified and optional some parameters to the command. The other parameters can be used to override the settings from the active configuration file.        
 By default Invoke-CSApiCAll will return XML formatted output, but JSON is also possible using *-Format JSON*
 ```
 PS> Invoke-CSApiCall -Command listZones name=Bootcamp 
