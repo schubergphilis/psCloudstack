@@ -78,6 +78,9 @@ Last but not least. Displaying final status results of an asynchroneous jobs was
 recognizable list function available in the Related Functions part. Connect-CSManager now builds a list of asynchroneous functions
 with their matching list function, and this list is now used to find the match.
 
+####V3.0.1####
+Removed the automatic result list for asynchroneous api's. The 'standard' job status object has a jobstatus item which contains almost everything one needs.
+Besides; you know best (I hope) what to do with the completion status information ;)
 
 Kind Regards,
 Hans van Veen

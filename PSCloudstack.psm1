@@ -65,7 +65,7 @@ function Set-CSConfig {
 
     
  .Notes
-    psCloudstack   : V3.0.0
+    psCloudstack   : V3.0.1
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -154,7 +154,7 @@ function Get-CSConfig {
     - Key              The user secret key (when requested)
     
  .Notes
-    psCloudstack   : V3.0.0
+    psCloudstack   : V3.0.1
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -253,7 +253,7 @@ function Add-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.0.0
+    psCloudstack   : V3.0.1
     Function Name  : Add-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -335,7 +335,7 @@ function Remove-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.0.0
+    psCloudstack   : V3.0.1
     Function Name  : Remove-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -405,7 +405,7 @@ function Convert-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.0.0
+    psCloudstack   : V3.0.1
     Function Name  : Convert-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -517,7 +517,7 @@ function Invoke-CSApiCall {
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V3.0.0
+    psCloudstack   : V3.0.1
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -548,7 +548,7 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
         if ($errMsg -match "^\d+") { $errCode = $matches[0]; $errMsg = $errMsg.SubString($errCode.Length) }
         Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow
         [xml]$response = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
-                          <$cmdIdent psCloudstack-version=`"3.0.0`">
+                          <$cmdIdent psCloudstack-version=`"3.0.1`">
                             <displaytext>$errMsg</displaytext>
                             <errorcode>$errCode</errorcode>
                             <success>false</success>
@@ -669,7 +669,7 @@ function Connect-CSManager {
  .Example
     # Connect and create the api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V3.0.0 - Generating 458 api functions for you
+    Welcome to psCloudstack V3.0.1 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -678,7 +678,7 @@ function Connect-CSManager {
     accounttype         : ..........................
     
   .Notes
-    psCloudstack   : V3.0.0
+    psCloudstack   : V3.0.1
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -700,7 +700,7 @@ param([parameter(Mandatory = $false)][string]$Name = "Default", [parameter(Manda
     # ==========================================================================================================================
     #   Load the config file
     # --------------------------------------------------------------------------------------------------------------------------
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V3.0.0, ..." -NoNewLine }
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V3.0.1, ..." -NoNewLine }
     $global:CSConfigDataSet = $Name
     $Connect = Get-CSConfig -ShowKeys -Name $CSConfigDataSet
     if ($Connect.Count -gt 1)
@@ -718,7 +718,6 @@ param([parameter(Mandatory = $false)][string]$Name = "Default", [parameter(Manda
     Write-Verbose "Collecting api function details for $($Connect.Name)"
     $apiCnt = 0
     $global:pscLR = @{}
-    foreach ($api in $laRSP.api) { if ($api.name.StartsWith("list")) { if ($api.related.length -gt 0) { $api.related.split(',')|%{ $pscLR[$_]=$api.name }}}}
     foreach ($api in $laRSP.api)
     {
         # -------------------------------------------------------------------------------
@@ -780,7 +779,6 @@ function global:$apiName {
             $prmList     += "[Parameter(Mandatory=`$false,ParameterSetName='NoWait')][switch]`$NoWait,`r`n      "
             $apiFunction += " .Parameter Wait`r`n     Wait xxx seconds for the job to complete before returning results. (Default: Wait for ever)`r`n"
             $prmList     += "[Parameter(Mandatory=`$false,ParameterSetName='Wait')][int32]`$Wait=-1,`r`n      "
-            $listApi      = $pscLR[$apiName]
         }
         if ($prmList -ne "") { $prmList = $prmList.TrimEnd(",`r`n      ") }
         $apiFunction += "`r`n .Outputs`r`n  System.Object`r`n"
@@ -790,7 +788,7 @@ function global:$apiName {
 
 
  .Notes
-    psCloudstack   : V3.0.0
+    psCloudstack   : V3.0.1
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -884,8 +882,6 @@ param($prmList)
         return
     }
     Write-Output `$jobResult
-    if ("$listApi".length -gt 0) { Write-Output (. $listApi -id `$jobResult.jobinstanceId) }
-    else { Write-Warning "Cannot determine related list function for $apiName" }
     return
 }
 
