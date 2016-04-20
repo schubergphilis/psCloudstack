@@ -82,5 +82,11 @@ with their matching list function, and this list is now used to find the match.
 Removed the automatic result list for asynchroneous api's. The 'standard' job status object has a jobstatus item which contains almost everything one needs.
 Besides; you know best (I hope) what to do with the completion status information ;)
 
+####V3.0.2####
+There was a bug in using the unsecured (http) based connection, it just did not work since credentials/keys were not included in the call.
+This has been fixed and both secure and unsecure calls (controlled via the -UseSSL switch) are working now
+James Richards of Citrix Systems, Inc. Thank you for discovering this bug.
+
+
 Kind Regards,
 Hans van Veen

@@ -65,7 +65,7 @@ function Set-CSConfig {
 
     
  .Notes
-    psCloudstack   : V3.0.1
+    psCloudstack   : V3.0.2
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -154,7 +154,7 @@ function Get-CSConfig {
     - Key              The user secret key (when requested)
     
  .Notes
-    psCloudstack   : V3.0.1
+    psCloudstack   : V3.0.2
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -253,7 +253,7 @@ function Add-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.0.1
+    psCloudstack   : V3.0.2
     Function Name  : Add-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -335,7 +335,7 @@ function Remove-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.0.1
+    psCloudstack   : V3.0.2
     Function Name  : Remove-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -405,7 +405,7 @@ function Convert-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.0.1
+    psCloudstack   : V3.0.2
     Function Name  : Convert-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -506,10 +506,6 @@ function Invoke-CSApiCall {
     The users secret key.  Using this parameter will override value from the the config 
 
  .Parameter UseSSL
-    Use https when connecting to the Cloudstack management server.
-    Only used when requesting access via the secured port.
-
- .Parameter UseUnsecure
     When this switch is specified the api call will be directed to the unsecure port
 
 
@@ -517,7 +513,7 @@ function Invoke-CSApiCall {
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V3.0.1
+    psCloudstack   : V3.0.2
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -532,8 +528,7 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
       [Parameter(Mandatory = $false)][int]$UnsecurePort,
       [Parameter(Mandatory = $false)][string]$Apikey,
       [Parameter(Mandatory = $false)][string]$Secret,
-      [Parameter(Mandatory = $false)][switch]$UseSSL,
-      [Parameter(Mandatory = $false)][switch]$UseUnsecure)
+      [Parameter(Mandatory = $false)][switch]$UseSSL)
     $bndPrm = $PSBoundParameters
     $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
     $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
@@ -548,7 +543,7 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
         if ($errMsg -match "^\d+") { $errCode = $matches[0]; $errMsg = $errMsg.SubString($errCode.Length) }
         Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow
         [xml]$response = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
-                          <$cmdIdent psCloudstack-version=`"3.0.1`">
+                          <$cmdIdent psCloudstack-version=`"3.0.2`">
                             <displaytext>$errMsg</displaytext>
                             <errorcode>$errCode</errorcode>
                             <success>false</success>
@@ -593,38 +588,37 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     }
     Write-Verbose "Query String: $queryString"
     # ======================================================================================================================
-    #  If it is an unsecured call, issue it
+    #  Set protocol and port to use
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($UseUnsecure)
+    if ($UseSSL)
+    {
+        Write-Verbose "Secured web request for api call: $Command"
+        $protocol = "https"
+        $port = $Connect.SecurePort
+    }
+    else
     {
         Write-Verbose "Unsecured web request for api call: $Command"
-        $csUrl = "http://{0}:{1}/client/api?command={2}&{3}" -f $Connect.Server,$Connect.UnsecurePort,$Command,$queryString
-        $prefProgress = $progressPreference; $progressPreference = 'silentlyContinue'
-        $Response = Invoke-WebRequest "$csUrl" -ErrorVariable iwr
-        $progressPreference = $prefProgress
+        $protocol = "http"
+        $port = $Connect.UnsecurePort
     }
+    # ======================================================================================================================
+    #  Build the api signature
+    # ----------------------------------------------------------------------------------------------------------------------
+    $cryptString = (("apikey={0}&command={1}&{2}" -f $Connect.api,$Command,$queryString).split("&")|sort) -join "&"
+    $crypt.key = [Text.Encoding]::ASCII.GetBytes($Connect.key)
+    $cryptBytes = $crypt.ComputeHash([Text.Encoding]::ASCII.GetBytes($cryptString.ToLower()))
+    $apiSignature = [System.Web.HttpUtility]::UrlEncode([System.Convert]::ToBase64String($cryptBytes))
+    Write-Verbose "Signature: $apiSignature"
     # ======================================================================================================================
     #  Build a signed api call (URL Query String) using the details provided. Beware: Base64 does not deliver a string
     #  which complies with the URL encoding standard!
     # ----------------------------------------------------------------------------------------------------------------------
-    else
-    {
-        Write-Verbose "Secured web request for api call: $Command"
-        $cryptString = (("apikey={0}&command={1}&{2}" -f $Connect.api,$Command,$queryString).split("&")|sort) -join "&"
-        $crypt.key = [Text.Encoding]::ASCII.GetBytes($Connect.key)
-        $cryptBytes = $crypt.ComputeHash([Text.Encoding]::ASCII.GetBytes($cryptString.ToLower()))
-        $apiSignature = [System.Web.HttpUtility]::UrlEncode([System.Convert]::ToBase64String($cryptBytes))
-        Write-Verbose "Signature: $apiSignature"
-        # ------------------------------------------------------------------------------------------------------------------
-        #  The signature is ready, create the final url and invoke the web request
-        # ------------------------------------------------------------------------------------------------------------------
-        $protocol = "http"; if ($Connect.UseSSL) { $protocol = "https" }
-        $baseUrl = "{0}://{1}:{2}/client/api?" -f $protocol,$Connect.Server,$Connect.SecurePort
-        $csUrl = "{0}command={1}&{2}&apikey={3}&signature={4}" -f $baseUrl,$Command,$queryString,$Connect.api,$apiSignature
-        $prefProgress = $progressPreference; $progressPreference = 'silentlyContinue'
-        $Response = Invoke-WebRequest "$csUrl" -ErrorVariable iwr
-        $progressPreference = $prefProgress
-    }
+    $baseUrl = "{0}://{1}:{2}/client/api?" -f $protocol,$Connect.Server,$port
+    $csUrl = "{0}command={1}&{2}&apikey={3}&signature={4}" -f $baseUrl,$Command,$queryString,$Connect.api,$apiSignature
+    $prefProgress = $progressPreference; $progressPreference = 'silentlyContinue'
+    $Response = Invoke-WebRequest "$csUrl" -ErrorVariable iwr
+    $progressPreference = $prefProgress
     # ======================================================================================================================
     #  Now return the content in the requested format
     # ----------------------------------------------------------------------------------------------------------------------
@@ -669,7 +663,7 @@ function Connect-CSManager {
  .Example
     # Connect and create the api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V3.0.1 - Generating 458 api functions for you
+    Welcome to psCloudstack V3.0.2 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -678,7 +672,7 @@ function Connect-CSManager {
     accounttype         : ..........................
     
   .Notes
-    psCloudstack   : V3.0.1
+    psCloudstack   : V3.0.2
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -700,7 +694,7 @@ param([parameter(Mandatory = $false)][string]$Name = "Default", [parameter(Manda
     # ==========================================================================================================================
     #   Load the config file
     # --------------------------------------------------------------------------------------------------------------------------
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V3.0.1, ..." -NoNewLine }
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V3.0.2, ..." -NoNewLine }
     $global:CSConfigDataSet = $Name
     $Connect = Get-CSConfig -ShowKeys -Name $CSConfigDataSet
     if ($Connect.Count -gt 1)
@@ -788,7 +782,7 @@ function global:$apiName {
 
 
  .Notes
-    psCloudstack   : V3.0.1
+    psCloudstack   : V3.0.2
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V3

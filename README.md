@@ -78,7 +78,7 @@ job details. Use -NoWait if you do not want to wait at all.
 ```
 
 #####7. Invoke-CSApiCall#####
-    Invoke-CSApiCall -Command <String> [-Parameters <String[]>] [-Format <string>] [-Server <String>] [-[Un]SecurePort <Int32>] [-Apikey <String>] [-Secret <String>] [-UseSSL] [-UseUnsecure]
+    Invoke-CSApiCall -Command <String> [-Parameters <String[]>] [-Format <string>] [-Server <String>] [-[Un]SecurePort <Int32>] [-Apikey <String>] [-Secret <String>] [-UseSSL]
 This function contains the actual api call logic. An Cloudstack api call has to be formatted in a specific way and signed using the users api & secret key. This process is described in detail in the "Cloudstack API Developer's Guide" chapter "Calling the Cloudstack API".
 
 Invoke-CSApiCall is used by every api function created via Connect-CSManager (which uses it to get all the available api's), but it can also be used interactively.
