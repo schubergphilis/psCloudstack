@@ -617,7 +617,7 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     $baseUrl = "{0}://{1}:{2}/client/api?" -f $protocol,$Connect.Server,$port
     $csUrl = "{0}command={1}&{2}&apikey={3}&signature={4}" -f $baseUrl,$Command,$queryString,$Connect.api,$apiSignature
     $prefProgress = $progressPreference; $progressPreference = 'silentlyContinue'
-    $Response = Invoke-WebRequest "$csUrl" -ErrorVariable iwr
+    $Response = Invoke-WebRequest "$csUrl" -UseBasicParsing -ErrorVariable iwr
     $progressPreference = $prefProgress
     # ======================================================================================================================
     #  Now return the content in the requested format
