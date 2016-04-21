@@ -74,7 +74,7 @@ FormatsToProcess = @()
 NestedModules = @()
 
 # Functions to export from this module
-FunctionsToExport = 'Add-CSConfig','Get-CSConfig','Set-CSConfig','Remove-CSConfig','Convert-CSConfig','Connect-CSManager','Invoke-CSApiCall'
+FunctionsToExport = 'Add-CSConfig','Get-CSConfig','Set-CSConfig','Remove-CSConfig','Convert-CSConfig','Connect-CSManager','Invoke-CSApiCall','Start-CSConsoleSession'
 
 # Cmdlets to export from this module
 CmdletsToExport = '*'

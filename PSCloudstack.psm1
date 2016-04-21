@@ -65,7 +65,7 @@ function Set-CSConfig {
 
     
  .Notes
-    psCloudstack   : V3.0.2
+    psCloudstack   : V3.1.0
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -154,7 +154,7 @@ function Get-CSConfig {
     - Key              The user secret key (when requested)
     
  .Notes
-    psCloudstack   : V3.0.2
+    psCloudstack   : V3.1.0
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -253,7 +253,7 @@ function Add-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.0.2
+    psCloudstack   : V3.1.0
     Function Name  : Add-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -335,7 +335,7 @@ function Remove-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.0.2
+    psCloudstack   : V3.1.0
     Function Name  : Remove-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -405,7 +405,7 @@ function Convert-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.0.2
+    psCloudstack   : V3.1.0
     Function Name  : Convert-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -513,7 +513,7 @@ function Invoke-CSApiCall {
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V3.0.2
+    psCloudstack   : V3.1.0
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -543,7 +543,7 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
         if ($errMsg -match "^\d+") { $errCode = $matches[0]; $errMsg = $errMsg.SubString($errCode.Length) }
         Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow
         [xml]$response = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
-                          <$cmdIdent psCloudstack-version=`"3.0.2`">
+                          <$cmdIdent psCloudstack-version=`"3.1.0`">
                             <displaytext>$errMsg</displaytext>
                             <errorcode>$errCode</errorcode>
                             <success>false</success>
@@ -554,7 +554,6 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     #  Local variables and definitions. Hide progress of Invoke-WebRequest 
     # ----------------------------------------------------------------------------------------------------------------------
     [void][System.Reflection.Assembly]::LoadWithpartialname("System.Web")
-    $crypt = New-Object System.Security.Cryptography.HMACSHA1
     # ======================================================================================================================
     #  Get the connection details from the config file.
     # ----------------------------------------------------------------------------------------------------------------------
@@ -574,15 +573,15 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     #
     #  BEWARE!   We need to comply with the URL encoding standards. But the equal-sign in a parameter name/value pair
     #            has to stay! Assume the name to be compliant and only convert the value. Pitfall #2: UrlEncode
-    #            replaces spaces with a + sign, but the Cloudstack api does not understand that. So replace + with %20
+    #            replaces spaces with a + sign, but the Cloudstack api does not understand that. So replace + with %2B
     # ----------------------------------------------------------------------------------------------------------------------
-    $Command = ([System.Web.HttpUtility]::UrlEncode($Command)).Replace("+","%20")
+    $Command = ([System.Web.HttpUtility]::UrlEncode($Command)).Replace("&","%26").Replace("+","%2B")
     $queryString = "response={0}" -f $Format.ToLower()
     $Parameters|%{
         if ($_.Length -gt 0)
         {
             $prmName,$prmVal = $_ -Split "=",2
-            $prmVal = ([System.Web.HttpUtility]::UrlEncode($prmVal)).Replace("+","%20")
+            $prmVal = ([System.Web.HttpUtility]::UrlEncode($prmVal)).Replace("&","%26").Replace("+","%2B")
             $queryString += ("&{0}={1}" -f $prmName, $prmVal)
         }
     }
@@ -606,10 +605,7 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     #  Build the api signature
     # ----------------------------------------------------------------------------------------------------------------------
     $cryptString = (("apikey={0}&command={1}&{2}" -f $Connect.api,$Command,$queryString).split("&")|sort) -join "&"
-    $crypt.key = [Text.Encoding]::ASCII.GetBytes($Connect.key)
-    $cryptBytes = $crypt.ComputeHash([Text.Encoding]::ASCII.GetBytes($cryptString.ToLower()))
-    $apiSignature = [System.Web.HttpUtility]::UrlEncode([System.Convert]::ToBase64String($cryptBytes))
-    Write-Verbose "Signature: $apiSignature"
+    $apiSignature = Get-ApiSignature -Command $cryptString -Key $Connect.key -Verbose:$doVerbose -Debug:$doDebug
     # ======================================================================================================================
     #  Build a signed api call (URL Query String) using the details provided. Beware: Base64 does not deliver a string
     #  which complies with the URL encoding standard!
@@ -617,7 +613,7 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     $baseUrl = "{0}://{1}:{2}/client/api?" -f $protocol,$Connect.Server,$port
     $csUrl = "{0}command={1}&{2}&apikey={3}&signature={4}" -f $baseUrl,$Command,$queryString,$Connect.api,$apiSignature
     $prefProgress = $progressPreference; $progressPreference = 'silentlyContinue'
-    $Response = Invoke-WebRequest "$csUrl" -UseBasicParsing -ErrorVariable iwr
+    $Response = Invoke-WebRequest "$csUrl" -UseBasicParsing -ErrorVariable iwr -Verbose:$doVerbose -Debug:$doDebug
     $progressPreference = $prefProgress
     # ======================================================================================================================
     #  Now return the content in the requested format
@@ -625,6 +621,101 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     $Content = $Response.Content
     if ($Format -eq "XML") { [xml]$Content = $Response.Content }
     Write-Output $Content
+}
+
+
+############################################################################################################################
+#  Start-CSConsoleSession
+#    This function will start a Cloudstack (VM) console session using either the VM name or id
+############################################################################################################################
+function Start-CSConsoleSession {
+<# 
+ .Synopsis
+    Start a Cloudstack (VM) console session
+
+ .Description
+    This function starts a VM console session using its name or id. 
+    At least one of the parameters (name or id) must be present!
+
+ .Parameter Name
+    Name of the VM to connect to.
+  
+ .Parameter Id
+    The id of the VM to connect to
+
+ .Outputs
+    None
+
+ .Example
+    # Start a VM consoler for VMHost "Monkey"
+    C:\PS> Start-CSConsoleSession -Name Monkey
+    
+  .Notes
+    psCloudstack   : V3.1.0
+    Function Name  : Start-CSConsoleSession
+    Author         : Hans van Veen
+    Requires       : PowerShell V3
+
+#>
+[CmdletBinding()]
+param([parameter(Mandatory = $false)][string]$Name, [parameter(Mandatory = $false)][string]$Id)
+    $bndPrm = $PSBoundParameters
+    $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
+    $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
+    # ==========================================================================================================================
+    #  Check hether name or id is used. At least one of them must be used and if both are specified, both will be used
+    # --------------------------------------------------------------------------------------------------------------------------
+    if (!$Name -and !$Id) { Write-Error "At least one parameter required, specify name and/or id"; break }
+    # ==========================================================================================================================
+    #  Check whether the listVirtualMachines function is available. If not warn the user to use Connect-CSManager first
+    # --------------------------------------------------------------------------------------------------------------------------
+    $lvm = ls Function:listVirtualMachines -ea SilentlyContinue
+    if (!$lvm) { Write-Warning "Cloudstack API functions not loaded, use Connect-CSManager to do so"; break }
+    # ==========================================================================================================================
+    #  Use the listVirtualMachines api function to verify the existance of the specified VM
+    # --------------------------------------------------------------------------------------------------------------------------
+    $prmSet = ""
+    if ($Name) { $prmSet += " -Name `"$Name`"" }
+    if ($Id)   { $prmSet += " -Id `"$Id`"" }
+    $lvmInfo = iex "listVirtualMachines $prmSet"
+    if (!$lvmInfo) { Write-Warning "Specified VM does not exist"; break }
+    # ==========================================================================================================================
+    #  Get the connection details from the config file.
+    # --------------------------------------------------------------------------------------------------------------------------
+    if ($CSConfigDataSet.length -gt 0) { $connectName = $CSConfigDataSet } else { $connectName = "Default" }
+    $Connect = Get-CSConfig -ShowKeys -Name $connectName
+    # ==========================================================================================================================
+    #  Use the VM id to start the console session
+    # --------------------------------------------------------------------------------------------------------------------------
+    $cryptString = "apikey={0}&cmd=access&vm={1}" -f $Connect.api, $lvmInfo.Id
+    $apiSignature = Get-ApiSignature -Command $cryptString -Key $Connect.key
+    # ======================================================================================================================
+    #  Set protocol and port to use
+    # ----------------------------------------------------------------------------------------------------------------------
+    if ($Connect.UseSSL)
+    {
+        Write-Verbose "Secured web request for console session: $Command"
+        $protocol = "https"
+        $port = $Connect.SecurePort
+    }
+    else
+    {
+        Write-Verbose "Unsecured web request for console session: $Command"
+        $protocol = "http"
+        $port = $Connect.UnsecurePort
+    }
+    # ======================================================================================================================
+    #  Build a signed api call (URL Query String) using the details provided. Beware: Base64 does not deliver a string
+    #  which complies with the URL encoding standard!
+    # ----------------------------------------------------------------------------------------------------------------------
+    $baseUrl = "{0}://{1}:{2}/client/console?" -f $protocol,$Connect.Server,$port
+    $csUrl = "{0}cmd=access&vm={1}&apikey={2}&signature={3}" -f $baseUrl,$lvmInfo.Id,$Connect.api,$apiSignature
+    Start-Process "$csUrl"
+    # ======================================================================================================================
+    #  Console has been started (or not). Exit
+    # ----------------------------------------------------------------------------------------------------------------------
 }
 
 ############################################################################################################################
@@ -663,7 +754,7 @@ function Connect-CSManager {
  .Example
     # Connect and create the api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V3.0.2 - Generating 458 api functions for you
+    Welcome to psCloudstack V3.1.0 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -672,7 +763,7 @@ function Connect-CSManager {
     accounttype         : ..........................
     
   .Notes
-    psCloudstack   : V3.0.2
+    psCloudstack   : V3.1.0
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -694,7 +785,7 @@ param([parameter(Mandatory = $false)][string]$Name = "Default", [parameter(Manda
     # ==========================================================================================================================
     #   Load the config file
     # --------------------------------------------------------------------------------------------------------------------------
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V3.0.2, ..." -NoNewLine }
+    if (!$Silent) { Write-Host "Welcome to psCloudstack V3.1.0, ..." -NoNewLine }
     $global:CSConfigDataSet = $Name
     $Connect = Get-CSConfig -ShowKeys -Name $CSConfigDataSet
     if ($Connect.Count -gt 1)
@@ -782,7 +873,7 @@ function global:$apiName {
 
 
  .Notes
-    psCloudstack   : V3.0.2
+    psCloudstack   : V3.1.0
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -942,4 +1033,55 @@ param($prmList)
 
 ############################################################################################################################
 ####                                      Internal-Only (Non-Exported) Functions                                        ####
+############################################################################################################################
+#  Get-ApiSignature
+#   Build the api call signature based upon the command & secret key
+############################################################################################################################
+function Get-ApiSignature {
+<# 
+ .Synopsis
+    Create tyhe API call signature
+
+ .Description
+    Build the API call signature based upon the command & secret key.
+
+ .Parameter Command
+    The command to create the signature for.
+
+ .Parameter Key
+    The users secret key.
+
+ .Outputs
+    Signature string
+
+    
+ .Notes
+    psCloudstack   : V3.1.0
+    Function Name  : Get-ApiSignature
+    Author         : Hans van Veen
+    Requires       : PowerShell V3
+
+#>
+[CmdletBinding()]
+param([parameter(Mandatory = $true)][string]$Command,
+      [Parameter(Mandatory = $true)][string]$Key)
+    $bndPrm = $PSBoundParameters
+    $doVerbose = $bndPrm.Verbose; if ($doVerbose) { $VerbosePreference = "Continue" } else { $VerbosePreference = "SilentlyContinue" }
+    $doDebug   = $bndPrm.Debug;   if ($doDebug)   { $DebugPreference   = "Continue" } else { $DebugPreference   = "SilentlyContinue" }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
+    # ======================================================================================================================
+    #  Load the System.Security object
+    # ----------------------------------------------------------------------------------------------------------------------
+    $crypt = New-Object System.Security.Cryptography.HMACSHA1
+    # ======================================================================================================================
+    #  Build the api signature
+    # ----------------------------------------------------------------------------------------------------------------------
+    $crypt.key = [Text.Encoding]::ASCII.GetBytes($Key)
+    $cryptBytes = $crypt.ComputeHash([Text.Encoding]::ASCII.GetBytes($Command.ToLower()))
+    $apiSignature = [System.Web.HttpUtility]::UrlEncode([System.Convert]::ToBase64String($cryptBytes))
+    Write-Verbose "Signature: $apiSignature"
+    return $apiSignature
+}
+
 ############################################################################################################################

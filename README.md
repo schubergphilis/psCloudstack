@@ -96,3 +96,12 @@ version="1.0" encoding="UTF-8"                                    listzonesrespo
 PS> Invoke-CSApiCall -Command listZones name=Bootcamp  -Format JSON
 { "listzonesresponse" : { "count":1 ,"zone" : [  {"id":"755fba3b-a748-4458-a3d2-e149b74da94a","name":"Bootcamp","dns1":"8.8.8.8","dns2":"8.8.4.4","internaldns1":"192.168.56.11","guestcidraddress":"10.1.1.0/24","networktype":"Advanced","securitygroupsenabled":false,"allocationstate":"Enabled","zonetoken":"277b0fae-5b08-3a61-837a-b55475bac83b","dhcpprovider":"VirtualRouter","localstorageenabled":false} ] } }
 ```
+
+#####8. Start-CSConsoleSession#####
+    PS> Start-CSConsoleSession -Name 'VMname'     ....or....
+    PS> Start-CSConsoleSession -Id 'VMid'         ....or....
+    PS> Start-CSConsoleSession -Name 'VMname' -Id 'VMid'
+No need anymore for starting the Cloudstack GUI!
+Once connected to a Cloudstack server you can start a VM Console session via Start-CSConsoleSession -Name 'VMname'" (or one of the other options).
+
+The console session will be started in the users default browser.

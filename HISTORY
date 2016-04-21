@@ -87,6 +87,12 @@ There was a bug in using the unsecured (http) based connection, it just did not 
 This has been fixed and both secure and unsecure calls (controlled via the -UseSSL switch) are working now
 James Richards of Citrix Systems, Inc. Thank you for discovering this bug.
 
+####V3.1.0####
+Extended the psCloudstack functionality with a nice feature: Start-CSConsoleSession. No need anymore for starting the Cloudstack GUI!
+Once connected to a Cloudstack server you can start a VM Console session via "Start-CSConsoleSession -Name 'VMname'" or via
+"Start-CSConsoleSession -Id 'VMid'" or "Start-CSConsoleSession -Name 'VMname' -Id 'VMid'"
+Thank you James Richards for suggesting this addition.
+
 
 Kind Regards,
 Hans van Veen
