@@ -562,12 +562,12 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     # ======================================================================================================================
     #  Use the config details to see whether there are overrides....
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($Server -ne "") { $Connect.Server = $Server }
-    if ($SecurePort -ne 0) { $Connect.SecurePort = $SecurePort }
+    if ($Server -ne "")      { $Connect.Server = $Server }
+    if ($SecurePort -ne 0)   { $Connect.SecurePort = $SecurePort }
     if ($UnsecurePort -ne 0) { $Connect.UnsecurePort = $UnsecurePort }
-    if ($Apikey) { $Connect.api = $Apikey }
-    if ($Secret) { $Connect.key = $Secret }
-    if ($UseSSL) { $Connect.UseSSL = $true }
+    if ($Apikey -ne "")      { $Connect.api = $Apikey }
+    if ($Secret -ne "")      { $Connect.key = $Secret }
+    if ($UseSSL)             { $Connect.UseSSL = $true }
     # ======================================================================================================================
     #  If additional parameters and values are specified, format them to a valid api call query string
     #
@@ -589,7 +589,7 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     # ======================================================================================================================
     #  Set protocol and port to use
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($UseSSL)
+    if ($Connect.UseSSL)
     {
         Write-Verbose "Secured web request for api call: $Command"
         $protocol = "https"
