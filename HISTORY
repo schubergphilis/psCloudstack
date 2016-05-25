@@ -82,17 +82,13 @@ with their matching list function, and this list is now used to find the match.
 Removed the automatic result list for asynchroneous api's. The 'standard' job status object has a jobstatus item which contains almost everything one needs.
 Besides; you know best (I hope) what to do with the completion status information ;)
 
-####V3.0.2####
-There was a bug in using the unsecured (http) based connection, it just did not work since credentials/keys were not included in the call.
-This has been fixed and both secure and unsecure calls (controlled via the -UseSSL switch) are working now
-James Richards of Citrix Systems, Inc. Thank you for discovering this bug.
-
-####V3.1.0####
-Extended the psCloudstack functionality with a nice feature: Start-CSConsoleSession. No need anymore for starting the Cloudstack GUI!
-Once connected to a Cloudstack server you can start a VM Console session via "Start-CSConsoleSession -Name 'VMname'" or via
-"Start-CSConsoleSession -Id 'VMid'" or "Start-CSConsoleSession -Name 'VMname' -Id 'VMid'"
-Thank you James Richards for suggesting this addition.
-
+####V3.2.1####
+A lot of small and bigger things.
+Bug fixes: The Secure/Unsecure (http/https) selection was not correct. You could choose http but were still directed to https
+New functionality: Start-CSConsoleSession to start a console session with the cloud VM of your choice. No need to use Connect-CSMAnager first,
+as long as the the VM exists in the used zone the console will pop up
+Simplified/streamlined some code. Both Invoke-CSApiCall and Start-CSConsoleSession use the same logic to build the connection URL.
+This code is now isolated in the form of an internal function.
 
 Kind Regards,
 Hans van Veen

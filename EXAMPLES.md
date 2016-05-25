@@ -54,7 +54,7 @@ Function        Z:
 ####Creating the Cloudstack api functions....####
 And all was #up and running#, all entitled api functions at your feet........
 ```
-PS C:\> Connect-CSManager
+PS C:\> Connect-CSManager [-Zone ...]
 PS C:\> ls function:
 
 CommandType     Name                                               ModuleName

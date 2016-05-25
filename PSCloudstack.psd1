@@ -20,7 +20,7 @@
 ModuleToProcess = 'psCloudstack.psm1'
 
 # Version number of this module.
-ModuleVersion = '3.2.0'
+ModuleVersion = '3.2.1'
 
 # ID used to uniquely identify this module
 GUID = 'e98607bf-a84b-4453-96fc-7d791bf2e001'

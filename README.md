@@ -96,3 +96,9 @@ version="1.0" encoding="UTF-8"                                    listzonesrespo
 PS> Invoke-CSApiCall -Command listZones name=Bootcamp  -Format JSON
 { "listzonesresponse" : { "count":1 ,"zone" : [  {"id":"755fba3b-a748-4458-a3d2-e149b74da94a","name":"Bootcamp","dns1":"8.8.8.8","dns2":"8.8.4.4","internaldns1":"192.168.56.11","guestcidraddress":"10.1.1.0/24","networktype":"Advanced","securitygroupsenabled":false,"allocationstate":"Enabled","zonetoken":"277b0fae-5b08-3a61-837a-b55475bac83b","dhcpprovider":"VirtualRouter","localstorageenabled":false} ] } }
 ```
+
+#####8. Start-CSConsoleSession#####
+    Start-CSConsoleSession [-Zone <String>] -Server <String>
+This function starts a web based console session with the specified server. The server will be located in the default zone/connection, unless -Zone is used to specify a different zone.
+
+No need to use Connect-CSManager first, Start-CSConsoleSession works autonomous. If Connect-CSManager has been called, the server will be serached for in the connected zone (unless specified otherwise.....)
