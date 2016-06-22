@@ -289,9 +289,7 @@ param([parameter(Mandatory = $false)][string]$Zone = "Default",
     else
     {
         Write-Verbose "Creating new Cloudstack config file"
-        [xml]$curCfg = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
-                        <configuration version=`"3.0`">
-                        </configuration>"
+        [xml]$curCfg = Get-NewConfig
     }
     # ======================================================================================================================
     # Get the command line config settings.
@@ -453,9 +451,7 @@ param([Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.co
     if (!(Test-Path "$defConfigFile"))
     {
         Write-Verbose "Creating new Cloudstack config file"
-        [xml]$defCfg = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
-                        <configuration version=`"3.0`">
-                        </configuration>"
+        [xml]$defCfg = Get-NewConfig
     }
     else { [xml]$defCfg = gc "$defConfigFile" }
     if ($defCfg.configuration.version -lt 3.0)
@@ -564,8 +560,8 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     # ======================================================================================================================
     #  Get the connection details from the config file.
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($CSConfigDataSet.length -gt 0) { $connectZone = $CSConfigDataSet } else { $connectZone = "Default" }
-    $Connect = Get-CSConfig -ShowKeys -Zone $connectZone
+    if ($global:CloudstackZone -eq $null) { $global:CloudstackZone  = "Default" }
+    $Connect = Get-CSConfig -ShowKeys -Zone $global:CloudstackZone
     # ======================================================================================================================
     #  Use the config details to see whether there are overrides....
     # ----------------------------------------------------------------------------------------------------------------------
@@ -634,23 +630,24 @@ function Start-CSConsoleSession {
 
 #>
 [CmdletBinding()]
-param([parameter(Mandatory = $false)][string]$Zone = "Default",
-      [parameter(Mandatory = $false)][string]$Server)
+param([parameter(Mandatory = $true, Position = 0)][string]$Server,
+      [parameter(Mandatory = $false)][string]$Zone = "Default")
     $bndPrm = $PSBoundParameters
     if ($bndPrm.Verbose) { $VerbosePreference = "Continue"; $doVerbose = $true } else { $VerbosePreference = "SilentlyContinue"; $doVerbose = $false }
     if ($bndPrm.Debug)   { $DebugPreference   = "Continue"; $doDebug   = $true } else { $DebugPreference   = "SilentlyContinue"; $doDebug   = $false }
     if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
     if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ======================================================================================================================
-    #  Use the Invoke-CSApiCall with the listVirtualMachines api function to verify the existance of the specified VM
-    # ----------------------------------------------------------------------------------------------------------------------
-    try   { $lvmInfo = (Invoke-CSApiCall -Command listVirtualMachines -Parameters "name=$Server" -Verbose:$doVerbose).listvirtualmachinesresponse.virtualmachine } 
-    catch { Write-Warning "Specified VM does not exist"; break }
-    # ======================================================================================================================
     #  Get the connection details from the config file.
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($CSConfigDataSet.length -gt 0) { $connectZone = $CSConfigDataSet } else { $connectZone = $Zone }
-    $Connect = Get-CSConfig -ShowKeys -Zone $connectZone
+    $global:CloudstackZone = $Zone
+    Write-Verbose "Connecting to $Server in zone $global:CloudstackZone"
+    $Connect = Get-CSConfig -ShowKeys -Zone $global:CloudstackZone
+    # ======================================================================================================================
+    #  Use the Invoke-CSApiCall with the listVirtualMachines api function to verify the existance of the specified VM
+    # ----------------------------------------------------------------------------------------------------------------------
+    try   { $lvmInfo = (Invoke-CSApiCall -Command listVirtualMachines -Parameters "name=$($Server.ToLower())" -Verbose:$doVerbose).listvirtualmachinesresponse.virtualmachine } 
+    catch { Write-Warning "Specified VM does not exist"; break }
     # ======================================================================================================================
     #  Add extra items to the Connect object
     # ----------------------------------------------------------------------------------------------------------------------
@@ -737,9 +734,9 @@ param([parameter(Mandatory = $false)][string]$Zone = "Default", [parameter(Manda
     # ======================================================================================================================
     #   Load the config file
     # ----------------------------------------------------------------------------------------------------------------------
-    if (!$Silent) { Write-Host "Welcome to psCloudstack V3.2.1, ..." -NoNewLine }
-    $global:CSConfigDataSet = $Zone
-    $Connect = Get-CSConfig -ShowKeys -Zone $CSConfigDataSet
+    if (!$Silent) { Write-Host -f yellow "Welcome to psCloudstack V3.2.1, ..." }
+    $global:CloudstackZone = $Zone
+    $Connect = Get-CSConfig -ShowKeys -Zone $global:CloudstackZone
     if ($Connect.Count -gt 1)
     {
         $defConnect = $Connect|? Zone -eq "Default"
@@ -751,7 +748,12 @@ param([parameter(Mandatory = $false)][string]$Zone = "Default", [parameter(Manda
     # ----------------------------------------------------------------------------------------------------------------------
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
     if ($laRSP.success -eq "false") { return $laRSP }
-    if (!$Silent) { Write-Host "generating $($laRSP.Count) api functions for you" }
+    $csUser = (Invoke-CSApiCall listUsers -Format xml).listusersresponse.user|? apikey -eq $Connect.Api
+    $csParent = (Invoke-CSApiCall -Command listDomains -Parameters id=$($csUser.domainid) -Format XML).listdomainsresponse.domain.parentdomainname
+    $csRole = "Domain Admin"
+    if ($laRSP.Count -lt 400) { $csRole = "User" }
+    if ($laRSP.Count -gt 500) { $csRole = "Root Admin" }
+    if (!$Silent) { Write-Host -f yellow "You are connected as $csRole $($csUser.Username) to domain $csParent/$($csUser.domain)" }
     Write-Verbose "Collecting api function details for $($Connect.Zone)"
     $apiCnt = 0
     $global:pscLR = @{}
@@ -853,7 +855,7 @@ param($prmList)
     #  Verify build and current config. Reload psCloudstack if there is no match
     # ----------------------------------------------------------------------------------------------------------------------
     `$buildKey   = "$($Connect.Api)"
-    `$currentKey = (Get-CSConfig -ShowKeys -Zone `$CSConfigDataSet).Api
+    `$currentKey = (Get-CSConfig -ShowKeys -Zone `$global:CloudstackZone).Api
     if (`$buildKey -ne `$currentKey)
     {
         Write-Warning "Invalid config detected, reloading psCloudstack...."
@@ -1112,3 +1114,12 @@ param([parameter(Mandatory = $true)][string]$Command,
 }
 
 ############################################################################################################################
+#  Get-NewConfig
+#   returns an (empty) base xml configuration for psCloudstack
+# --------------------------------------------------------------------------------------------------------------------------
+function Get-NewConfig {
+    [xml]$newCfg = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
+                    <configuration version=`"3.0`">
+                    </configuration>"
+    return $newCfg
+}
