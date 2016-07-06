@@ -648,6 +648,7 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
     # ----------------------------------------------------------------------------------------------------------------------
     try   { $lvmInfo = (Invoke-CSApiCall -Command listVirtualMachines -Parameters "name=$($Server.ToLower())" -Verbose:$doVerbose).listvirtualmachinesresponse.virtualmachine } 
     catch { Write-Warning "Specified VM does not exist"; break }
+    if ($lvmInfo -eq $null) { Write-Warning "Specified VM does not exist"; break }
     # ======================================================================================================================
     #  Add extra items to the Connect object
     # ----------------------------------------------------------------------------------------------------------------------
