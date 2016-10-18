@@ -65,7 +65,7 @@ function Set-CSConfig {
 
     
  .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : V3.2.2
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -154,7 +154,7 @@ function Get-CSConfig {
     - Key              The user secret key (when requested)
     
  .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : V3.2.2
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -184,7 +184,7 @@ param([parameter(Mandatory = $false)][string[]]$Zone = "Default",
     {
         $dataSet = $curCfg.configuration.connect|? Zone -eq $getZone
         if (!$dataSet -and ($getZone -eq "Default")) { $dataSet = $curCfg.configuration.connect[0] }
-        if (!$dataSet) { Write-Warning "No such config dataset `"$getZone`""; continue }
+        if (!$dataSet) { Write-Warning "Zone `"$getZone`" dataset not found"; continue }
         # ==================================================================================================================
         #  Per named dataset, store all requested details in the connect object and send it down the pipeline
         # ------------------------------------------------------------------------------------------------------------------
@@ -199,11 +199,23 @@ param([parameter(Mandatory = $false)][string[]]$Zone = "Default",
             $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Api      -Value $dataSet.authentication.api
             $cfgObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Key      -Value $dataSet.authentication.key
         }
-        # ======================================================================================================================
+        # ==================================================================================================================
         #  All connection details are collected, write the object
-        # ----------------------------------------------------------------------------------------------------------------------
+        # ------------------------------------------------------------------------------------------------------------------
         Write-Output $cfgObject
     }
+    # ======================================================================================================================
+    #  If a specific zone has been requested than store the connection details in the session object
+    # ----------------------------------------------------------------------------------------------------------------------
+    if (!$All -and ($Zone.Count -eq 1))
+    {
+        if ($global:CSSessionObject -eq $null) { New-CSSessionObject }
+        Set-CSSessionObject -csObject   $cfgObject
+        Set-CSSessionObject -ApiKey     $dataSet.authentication.api
+        Set-CSSessionObject -Secret     $dataSet.authentication.key
+        Set-CSSessionObject -ConfigFile $ConfigFile
+    }
+    # ======================================================================================================================
 }
 
 ############################################################################################################################
@@ -253,7 +265,7 @@ function Add-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : V3.2.2
     Function Name  : Add-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -289,7 +301,7 @@ param([parameter(Mandatory = $false)][string]$Zone = "Default",
     else
     {
         Write-Verbose "Creating new Cloudstack config file"
-        [xml]$curCfg = Get-NewConfig
+        [xml]$curCfg = New-CSConfig
     }
     # ======================================================================================================================
     # Get the command line config settings.
@@ -333,7 +345,7 @@ function Remove-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : V3.2.2
     Function Name  : Remove-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -403,7 +415,7 @@ function Convert-CSConfig {
     None
     
  .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : V3.2.2
     Function Name  : Convert-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -451,7 +463,7 @@ param([Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.co
     if (!(Test-Path "$defConfigFile"))
     {
         Write-Verbose "Creating new Cloudstack config file"
-        [xml]$defCfg = Get-NewConfig
+        [xml]$defCfg = New-CSConfig
     }
     else { [xml]$defCfg = gc "$defConfigFile" }
     if ($defCfg.configuration.version -lt 3.0)
@@ -470,132 +482,6 @@ param([Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.co
 }
 
 ############################################################################################################################
-#  Invoke-CSApiCall
-#    This function will use the stored connection info to build and issue a valid Cloudstack api call
-#    This call can either be directed to the secure or unsecure port
-############################################################################################################################
-function Invoke-CSApiCall {
-<# 
- .Synopsis
-    Build and issue a valid Cloudstack api call.
-
- .Description
-    This function uses the connection info from the config file to build and issue a valid Cloudstack
-    api call. This api call can either be directed to the secure (authentication required) port or the unsecure port.
-
- .Parameter Command
-    The api command to issue.
-
- .Parameter Parameters
-    A comma-separate list of additional api call parameters and values
-
- .Parameter Format
-    Specifies the reponse output format. By default XML output is returned, the other option is JSON
-
- .Parameter Server
-    The name or IP address of the Cloudstack management server. Using this parameter will override
-    value from the the config 
-
- .Parameter SecurePort
-    The API secure port number. Using this parameter will override value from the the config
-
- .Parameter UnecurePort
-    The API unsecure port number. Using this parameter will override value from the the config
-
- .Parameter Apikey
-    The users apikey.  Using this parameter will override value from the the config 
-      
- .Parameter Secret
-    The users secret key.  Using this parameter will override value from the the config 
-
- .Parameter UseSSL
-    When this switch is specified the api call will be directed to the unsecure port
-
-
- .Outputs
-    An XML or JSON formatted object which contains all content output returned by the api call
-    
- .Notes
-    psCloudstack   : V3.2.1
-    Function Name  : Invoke-CSApiCall
-    Author         : Hans van Veen
-    Requires       : PowerShell V3
-
-#>
-[CmdletBinding()]
-param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
-      [Parameter(Mandatory = $false)][string[]]$Parameters=$null,
-      [Parameter(Mandatory = $false)][ValidateSet("XML","JSON")] [string]$Format="XML",
-      [Parameter(Mandatory = $false)][string]$Server,
-      [Parameter(Mandatory = $false)][int]$SecurePort,
-      [Parameter(Mandatory = $false)][int]$UnsecurePort,
-      [Parameter(Mandatory = $false)][string]$Apikey,
-      [Parameter(Mandatory = $false)][string]$Secret,
-      [Parameter(Mandatory = $false)][switch]$UseSSL)
-    $bndPrm = $PSBoundParameters
-    if ($bndPrm.Verbose) { $VerbosePreference = "Continue"; $doVerbose = $true } else { $VerbosePreference = "SilentlyContinue"; $doVerbose = $false }
-    if ($bndPrm.Debug)   { $DebugPreference   = "Continue"; $doDebug   = $true } else { $DebugPreference   = "SilentlyContinue"; $doDebug   = $false }
-    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
-    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
-    # ======================================================================================================================
-    #  Trap all errors and return them in a fashionable way...
-    # ----------------------------------------------------------------------------------------------------------------------
-    trap
-    {
-        $errCode = "1"; $errMsg = $iwr.Message; $cmdIdent = "{0}response" -f $Command.ToLower()
-        if ($errMsg -match "^\d+") { $errCode = $matches[0]; $errMsg = $errMsg.SubString($errCode.Length) }
-        Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow
-        [xml]$response = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
-                          <$cmdIdent psCloudstack-version=`"3.2.1`">
-                            <displaytext>$errMsg</displaytext>
-                            <errorcode>$errCode</errorcode>
-                            <success>false</success>
-                          </$cmdIdent>"
-        return $response
-    }
-    # ======================================================================================================================
-    #  Local variables and definitions. Hide progress of Invoke-WebRequest 
-    # ----------------------------------------------------------------------------------------------------------------------
-    [void][System.Reflection.Assembly]::LoadWithpartialname("System.Web")
-    # ======================================================================================================================
-    #  Get the connection details from the config file.
-    # ----------------------------------------------------------------------------------------------------------------------
-    if ($global:CloudstackZone -eq $null) { $global:CloudstackZone  = "Default" }
-    $Connect = Get-CSConfig -ShowKeys -Zone $global:CloudstackZone
-    # ======================================================================================================================
-    #  Use the config details to see whether there are overrides....
-    # ----------------------------------------------------------------------------------------------------------------------
-    if ($Server -ne "")      { $Connect.Server = $Server }
-    if ($SecurePort -ne 0)   { $Connect.SecurePort = $SecurePort }
-    if ($UnsecurePort -ne 0) { $Connect.UnsecurePort = $UnsecurePort }
-    if ($Apikey -ne "")      { $Connect.api = $Apikey }
-    if ($Secret -ne "")      { $Connect.key = $Secret }
-    if ($UseSSL)             { $Connect.UseSSL = $true }
-    # ======================================================================================================================
-    #  Add extra items to the Connect object
-    # ----------------------------------------------------------------------------------------------------------------------
-    $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Type       -Value "api"
-    $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Command    -Value "command=$Command"
-    $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Parameters -Value $Parameters
-    $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Format     -Value $Format
-    # ======================================================================================================================
-    #  Build a signed api call (URL Query String) using the details provided. Beware: Base64 does not deliver a string
-    #  which complies with the URL encoding standard!
-    # ----------------------------------------------------------------------------------------------------------------------
-    $csUrl = Get-APIWebRequest -InputObject $Connect -Verbose:$doVerbose -Debug:$doDebug
-    $prefProgress = $progressPreference; $progressPreference = 'silentlyContinue'
-    $Response = Invoke-WebRequest "$csUrl" -UseBasicParsing -ErrorVariable iwr -Verbose:$doVerbose -Debug:$doDebug
-    $progressPreference = $prefProgress
-    # ======================================================================================================================
-    #  Now return the content in the requested format
-    # ----------------------------------------------------------------------------------------------------------------------
-    $Content = $Response.Content
-    if ($Format -eq "XML") { [xml]$Content = $Response.Content }
-    Write-Output $Content
-}
-
-
-############################################################################################################################
 #  Start-CSConsoleSession
 #    This function will start a Cloudstack (VM) console session for the specified server
 ############################################################################################################################
@@ -607,13 +493,17 @@ function Start-CSConsoleSession {
  .Description
     This function starts a console session for the specified server.
 
+ .Parameter Server
+    Name of the server to connect to.
+
  .Parameter Zone
     Name of the zone in which the server is hosted.
   
     Default: Default (or 1st zone in the config)
 
- .Parameter Server
-    Name of the server to connect to.
+ .Parameter ConfigFile
+    The path and name of a config file from which the session details will be read.
+    By default $Env:LocalAppData\psCloudstack.config will be used, but a different file can be specified.
 
  .Outputs
     None
@@ -623,7 +513,7 @@ function Start-CSConsoleSession {
     C:\PS> Start-CSConsoleSession -Server Monkey -Zone Zoo
     
   .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : V3.2.2
     Function Name  : Start-CSConsoleSession
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -631,24 +521,33 @@ function Start-CSConsoleSession {
 #>
 [CmdletBinding()]
 param([parameter(Mandatory = $true, Position = 0)][string]$Server,
-      [parameter(Mandatory = $false)][string]$Zone = "Default")
+      [parameter(Mandatory = $false)][string]$Zone = "Default",
+      [Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.config" -f $env:LocalAppData))
     $bndPrm = $PSBoundParameters
     if ($bndPrm.Verbose) { $VerbosePreference = "Continue"; $doVerbose = $true } else { $VerbosePreference = "SilentlyContinue"; $doVerbose = $false }
     if ($bndPrm.Debug)   { $DebugPreference   = "Continue"; $doDebug   = $true } else { $DebugPreference   = "SilentlyContinue"; $doDebug   = $false }
     if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
     if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ======================================================================================================================
-    #  Get the connection details from the config file.
+    #   If needed, create a new session object and load the config file details into it
     # ----------------------------------------------------------------------------------------------------------------------
-    $global:CloudstackZone = $Zone
-    Write-Verbose "Connecting to $Server in zone $global:CloudstackZone"
-    $Connect = Get-CSConfig -ShowKeys -Zone $global:CloudstackZone
+    if ($global:CSSessionObject -eq $Null)
+    {
+        New-CSSessionObject
+        Set-CSSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
+        Set-CSSessionObject -ConfigFile $ConfigFile
+    }
+    # ======================================================================================================================
+    #  Clone the connection details from the session objec.
+    # ----------------------------------------------------------------------------------------------------------------------
+    Write-Verbose "Connecting to $Server in zone $global:CSSessionObject.Zone"
+    $Connect = $global:CSSessionObject.PsObject.Copy()
     # ======================================================================================================================
     #  Use the Invoke-CSApiCall with the listVirtualMachines api function to verify the existance of the specified VM
     # ----------------------------------------------------------------------------------------------------------------------
     try   { $lvmInfo = (Invoke-CSApiCall -Command listVirtualMachines -Parameters "name=$($Server.ToLower())" -Verbose:$doVerbose).listvirtualmachinesresponse.virtualmachine } 
     catch { Write-Warning "Specified VM does not exist"; break }
-    if ($lvmInfo -eq $null) { Write-Warning "Specified VM does not exist"; break }
+    if ($lvmInfo -eq $null) { Write-Warning "Specified VM does not exist in zone $($global:CSSessionObject.Zone)"; break }
     # ======================================================================================================================
     #  Add extra items to the Connect object
     # ----------------------------------------------------------------------------------------------------------------------
@@ -695,6 +594,10 @@ function Connect-CSManager {
     Use the named zone connetion data from the configuration file. If no name is specified, the dataset marked
     "Default" will be used. If that does not exist the 1st dataset in the file will be used.
   
+ .Parameter ConfigFile
+    The path and name of a config file from which the session details will be read.
+    By default $Env:LocalAppData\psCloudstack.config will be used, but a different file can be specified.
+
  .Parameter Silent
     Suppress the welcome message
 
@@ -704,7 +607,7 @@ function Connect-CSManager {
  .Example
     # Connect and create the api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V3.2.1 - Generating 458 api functions for you
+    Welcome to psCloudstack V3.2.2 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -713,14 +616,16 @@ function Connect-CSManager {
     accounttype         : ..........................
     
   .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : V3.2.2
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V3
 
 #>
 [CmdletBinding()]
-param([parameter(Mandatory = $false)][string]$Zone = "Default", [parameter(Mandatory = $false)][switch]$Silent)
+param([Parameter(Mandatory = $false)][string]$Zone = "Default",
+      [Parameter(Mandatory = $false)][string]$ConfigFile = ("{0}\psCloudstack.config" -f $env:LocalAppData),
+      [Parameter(Mandatory = $false)][switch]$Silent)
     $bndPrm = $PSBoundParameters
     if ($bndPrm.Verbose) { $VerbosePreference = "Continue"; $doVerbose = $true } else { $VerbosePreference = "SilentlyContinue"; $doVerbose = $false }
     if ($bndPrm.Debug)   { $DebugPreference   = "Continue"; $doDebug   = $true } else { $DebugPreference   = "SilentlyContinue"; $doDebug   = $false }
@@ -733,29 +638,27 @@ param([parameter(Mandatory = $false)][string]$Zone = "Default", [parameter(Manda
     $trnTable  = @{ "boolean" = "switch" ; "date"  = "string" ; "integer" = "int32"  ; "list" = "string[]" ; "long"   = "int64" ;
                     "map"     = "string" ; "short" = "int16"  ; "string"  = "string" ; "uuid" = "string"   ; "tzdate" = "string" }
     # ======================================================================================================================
-    #   Load the config file
+    #   Create a new session object and load the config file details into it
     # ----------------------------------------------------------------------------------------------------------------------
-    if (!$Silent) { Write-Host -f yellow "Welcome to psCloudstack V3.2.1, ..." }
-    $global:CloudstackZone = $Zone
-    $Connect = Get-CSConfig -ShowKeys -Zone $global:CloudstackZone
-    if ($Connect.Count -gt 1)
-    {
-        $defConnect = $Connect|? Zone -eq "Default"
-        if (!$defConnect) { $defConnect = $Connect[0] }
-        rv Connect; $Connect = $defConnect
-    }
+    New-CSSessionObject
+    Set-CSSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
+    Set-CSSessionObject -ConfigFile $ConfigFile
+    # ======================================================================================================================
+    #   Use the session object content to start a new psCloudstack session
+    # ----------------------------------------------------------------------------------------------------------------------
+    if (!$Silent) { Write-Host -f yellow ("Welcome to psCloudstack V{0}, ..." -f $global:CSSessionObject.Version) }
     # ======================================================================================================================
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # ----------------------------------------------------------------------------------------------------------------------
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
     if ($laRSP.success -eq "false") { return $laRSP }
-    $csUser = (Invoke-CSApiCall listUsers -Format xml).listusersresponse.user|? apikey -eq $Connect.Api
+    $csUser = (Invoke-CSApiCall listUsers -Format xml).listusersresponse.user|? apikey -eq $global:CSSessionObject.Api
     $csParent = (Invoke-CSApiCall -Command listDomains -Parameters id=$($csUser.domainid) -Format XML).listdomainsresponse.domain.parentdomainname
     $csRole = "Domain Admin"
     if ($laRSP.Count -lt 400) { $csRole = "User" }
     if ($laRSP.Count -gt 500) { $csRole = "Root Admin" }
     if (!$Silent) { Write-Host -f yellow "You are connected as $csRole $($csUser.Username) to domain $csParent/$($csUser.domain)" }
-    Write-Verbose "Collecting api function details for $($Connect.Zone)"
+    Write-Verbose "Collecting api function details for $($global:CSSessionObject.Zone)"
     $apiCnt = 0
     $global:pscLR = @{}
     foreach ($api in $laRSP.api)
@@ -828,7 +731,7 @@ function global:$apiName {
 
 
  .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : $($global:CSSessionObject.Version)
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -853,14 +756,13 @@ param($prmList)
     [string[]]`$Parameters = `$null
     `$asyncApi = "$asyncApi" -eq "True"
     # ======================================================================================================================
-    #  Verify build and current config. Reload psCloudstack if there is no match
+    #  Verify the active session object. Reload psCloudstack if it has been tampered with
     # ----------------------------------------------------------------------------------------------------------------------
-    `$buildKey   = "$($Connect.Api)"
-    `$currentKey = (Get-CSConfig -ShowKeys -Zone `$global:CloudstackZone).Api
-    if (`$buildKey -ne `$currentKey)
+    if (`$CSSessionObject.Secret -ne (Get-CSSessionObjectHash))
     {
-        Write-Warning "Invalid config detected, reloading psCloudstack...."
+        Write-Warning "Invalid session object detected, reloading psCloudstack...."
         Import-Module -Name  psCloudstack -Force -ea SilentlyContinue
+        rv -Name CSSessionObject -Scope Global
         Connect-CSManager
         Return
     }
@@ -987,7 +889,239 @@ param($prmList)
 }
 
 ############################################################################################################################
+#  Invoke-CSApiCall
+#    This function will use the stored connection info to build and issue a valid Cloudstack api call
+#    This call can either be directed to the secure or unsecure port
+############################################################################################################################
+function Invoke-CSApiCall {
+<# 
+ .Synopsis
+    Build and issue a valid Cloudstack api call.
+
+ .Description
+    This function uses the connection info from the config file to build and issue a valid Cloudstack
+    api call. This api call can either be directed to the secure (authentication required) port or the unsecure port.
+
+ .Parameter Command
+    The api command to issue.
+
+ .Parameter Parameters
+    A comma-separate list of additional api call parameters and values
+
+ .Parameter Format
+    Specifies the reponse output format. By default XML output is returned, the other option is JSON
+
+ .Parameter Server
+    The name or IP address of the Cloudstack management server. Using this parameter will override
+    value from the the config 
+
+ .Parameter SecurePort
+    The API secure port number. Using this parameter will override value from the the config
+
+ .Parameter UnecurePort
+    The API unsecure port number. Using this parameter will override value from the the config
+
+ .Parameter Apikey
+    The users apikey.  Using this parameter will override value from the the config 
+      
+ .Parameter Secret
+    The users secret key.  Using this parameter will override value from the the config 
+
+ .Parameter UseSSL
+    When this switch is specified the api call will be directed to the unsecure port
+
+
+ .Outputs
+    An XML or JSON formatted object which contains all content output returned by the api call
+    
+ .Notes
+    psCloudstack   : V3.2.2
+    Function Name  : Invoke-CSApiCall
+    Author         : Hans van Veen
+    Requires       : PowerShell V3
+
+#>
+[CmdletBinding()]
+param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
+      [Parameter(Mandatory = $false)][string[]]$Parameters=$null,
+      [Parameter(Mandatory = $false)][ValidateSet("XML","JSON")] [string]$Format="XML",
+      [Parameter(Mandatory = $false)][string]$Server,
+      [Parameter(Mandatory = $false)][int]$SecurePort,
+      [Parameter(Mandatory = $false)][int]$UnsecurePort,
+      [Parameter(Mandatory = $false)][string]$Apikey,
+      [Parameter(Mandatory = $false)][string]$Secret,
+      [Parameter(Mandatory = $false)][switch]$UseSSL)
+    $bndPrm = $PSBoundParameters
+    if ($bndPrm.Verbose) { $VerbosePreference = "Continue"; $doVerbose = $true } else { $VerbosePreference = "SilentlyContinue"; $doVerbose = $false }
+    if ($bndPrm.Debug)   { $DebugPreference   = "Continue"; $doDebug   = $true } else { $DebugPreference   = "SilentlyContinue"; $doDebug   = $false }
+    if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
+    if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
+    # ======================================================================================================================
+    #  Trap all errors and return them in a fashionable way...
+    # ----------------------------------------------------------------------------------------------------------------------
+    trap
+    {
+        Write-Verbose "Error found: $_"
+        $errCode = "1"; $errMsg = $iwr.Message; $cmdIdent = "{0}response" -f $Command.ToLower()
+        if ($errMsg -match "^\d+") { $errCode = $matches[0]; $errMsg = $errMsg.SubString($errCode.Length) }
+        Write-Host "API Call Error: $errMsg" -f DarkBlue -b Yellow
+        [xml]$response = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
+                          <$cmdIdent psCloudstack-version=`"3.2.2`">
+                            <displaytext>$errMsg</displaytext>
+                            <errorcode>$errCode</errorcode>
+                            <success>false</success>
+                          </$cmdIdent>"
+        return $response
+    }
+    # ======================================================================================================================
+    #  Local variables and definitions. Hide progress of Invoke-WebRequest 
+    # ----------------------------------------------------------------------------------------------------------------------
+    [void][System.Reflection.Assembly]::LoadWithpartialname("System.Web")
+    # ======================================================================================================================
+    #  Clone the connection details from the session objec.
+    # ----------------------------------------------------------------------------------------------------------------------
+    $Connect = $global:CSSessionObject.PsObject.Copy()
+    # ======================================================================================================================
+    #  Use the config details to see whether there are overrides....
+    # ----------------------------------------------------------------------------------------------------------------------
+    if ($Server -ne "")      { $Connect.Server = $Server }
+    if ($SecurePort -ne 0)   { $Connect.SecurePort = $SecurePort }
+    if ($UnsecurePort -ne 0) { $Connect.UnsecurePort = $UnsecurePort }
+    if ($Apikey -ne "")      { $Connect.api = $Apikey }
+    if ($Secret -ne "")      { $Connect.key = $Secret }
+    if ($UseSSL)             { $Connect.UseSSL = $true }
+    # ======================================================================================================================
+    #  Add extra items to the Connect object
+    # ----------------------------------------------------------------------------------------------------------------------
+    $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Type       -Value "api"
+    $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Command    -Value "command=$Command"
+    $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Parameters -Value $Parameters
+    $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Format     -Value $Format
+    # ======================================================================================================================
+    #  Build a signed api call (URL Query String) using the details provided. Beware: Base64 does not deliver a string
+    #  which complies with the URL encoding standard!
+    # ----------------------------------------------------------------------------------------------------------------------
+    $csUrl = Get-APIWebRequest -InputObject $Connect -Verbose:$doVerbose -Debug:$doDebug
+    $prefProgress = $progressPreference; $progressPreference = 'silentlyContinue'
+    $Response = Invoke-WebRequest "$csUrl" -UseBasicParsing -ErrorVariable iwr -Verbose:$doVerbose -Debug:$doDebug
+    $progressPreference = $prefProgress
+    # ======================================================================================================================
+    #  Now return the content in the requested format
+    # ----------------------------------------------------------------------------------------------------------------------
+    $Content = $Response.Content
+    if ($Format -eq "XML") { [xml]$Content = $Response.Content }
+    Write-Output $Content
+}
+
+############################################################################################################################
 ####                                      Internal-Only (Non-Exported) Functions                                        ####
+############################################################################################################################
+#  New-CSSessionObject
+#   Creates an (empty) CSSessionObject for psCloudstack This object is essential to all psCloudstack functions!
+# --------------------------------------------------------------------------------------------------------------------------
+function New-CSSessionObject {
+    if ($global:CSSessionObject -ne $null) { rv -Name CSSessionObject -Scope Global -Force}
+    $global:CSSessionObject = New-Object -TypeName PSObject
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Created      -Value (Get-Date)
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Version      -Value "3.2.2"
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Secret       -Value $Null
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Zone         -Value $Null
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Server       -Value $Null
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name SecurePort   -Value $Null
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UnsecurePort -Value $Null
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Api          -Value $Null
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Key          -Value $Null
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UseSSL       -Value $Null
+    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name ConfigFile   -Value $Null
+}
+
+############################################################################################################################
+#  Set-CSSessionObject
+#   Fill the session object with active session information. The session info can be passed per item or as an object
+# --------------------------------------------------------------------------------------------------------------------------
+function Set-CSSessionObject {
+param([parameter(Mandatory = $false)][string]$Zone = $Null,
+      [parameter(Mandatory = $false)][string]$NewName = $Null,
+      [parameter(Mandatory = $false)][string]$Server = $Null,
+      [Parameter(Mandatory = $false)][int]$SecurePort = $Null,
+      [Parameter(Mandatory = $false)][int]$UnsecurePort = $Null,
+      [Parameter(Mandatory = $false)][string]$ApiKey = $Null,
+      [Parameter(Mandatory = $false)][string]$Secret = $Null,
+      [Parameter(Mandatory = $false)][switch]$UseSSL = $Null,
+      [Parameter(Mandatory = $false)][string]$ConfigFile = $Null,
+      [Parameter(Mandatory = $false)][psObject]$csObject = $Null)
+    # ======================================================================================================================
+    #  No current session object yet, than create an empty one
+    # ----------------------------------------------------------------------------------------------------------------------
+    if ($global:CSSessionObject -eq $null) { New-CSSessionObject }
+    # ======================================================================================================================
+    #  Update the session object with the commandline/parameter content
+    # ----------------------------------------------------------------------------------------------------------------------
+    if ($csObject)
+    {
+        if ($csObject.Zone)         { $global:CSSessionObject.Zone         = $csObject.Zone }
+        if ($csObject.Server)       { $global:CSSessionObject.Server       = $csObject.Server }
+        if ($csObject.SecurePort)   { $global:CSSessionObject.SecurePort   = $csObject.SecurePort }
+        if ($csObject.UnsecurePort) { $global:CSSessionObject.UnsecurePort = $csObject.UnsecurePort }
+        if ($csObject.Api)          { $global:CSSessionObject.Api          = $csObject.Api }
+        if ($csObject.Key)          { $global:CSSessionObject.Key          = $csObject.Key }
+        if ($csObject.UseSSL)       { $global:CSSessionObject.UseSSL       = $csObject.UseSSL }
+        if ($csObject.ConfigFile)   { $global:CSSessionObject.ConfigFile   = $csObject.ConfigFile }
+    }
+    else
+    {
+        if ($Zone)                  { $global:CSSessionObject.Zone         = $Zone }
+        if ($Server)                { $global:CSSessionObject.Server       = $Server }
+        if ($SecurePort)            { $global:CSSessionObject.SecurePort   = $SecurePort }
+        if ($UnsecurePort)          { $global:CSSessionObject.UnsecurePort = $UnsecurePort }
+        if ($ApiKey)                { $global:CSSessionObject.Api          = $ApiKey }
+        if ($Secret)                { $global:CSSessionObject.Key          = $Secret }
+        if ($UseSSL)                { $global:CSSessionObject.UseSSL       = $UseSSL }
+        if ($ConfigFile)            { $global:CSSessionObject.ConfigFile   = $ConfigFile }
+    }
+    # ======================================================================================================================
+    #  Finally add a hash value to the object which can be used to secure/verify the object content
+    # ----------------------------------------------------------------------------------------------------------------------
+    $global:CSSessionObject.Secret = Get-CSSessionObjectHash
+    return
+}
+
+############################################################################################################################
+#  Get-CSSessionObjectHash
+#   Creates a hash using the active CSSessionObject
+# --------------------------------------------------------------------------------------------------------------------------
+function Get-CSSessionObjectHash
+{
+    # ======================================================================================================================
+    #  No current session object yet, than create an empty one
+    # ----------------------------------------------------------------------------------------------------------------------
+    if ($global:CSSessionObject -eq $null) { New-CSSessionObject }
+    $resultingHash = ""; $Result = ""
+    # ======================================================================================================================
+    #  Create 1 long string of items in the object
+    # ----------------------------------------------------------------------------------------------------------------------
+    $hashFeed = "{0}{7}{1}{5}{9}{3}{6}{2}{4}{8}" -f $global:CSSessionObject.Zone, $global:CSSessionObject.Server, $global:CSSessionObject.Api, `
+                                                    $global:CSSessionObject.Key, $global:CSSessionObject.SecurePort, $global:CSSessionObject.UnsecurePort, `
+                                                    $global:CSSessionObject.UseSSL, $global:CSSessionObject.ConfigFile, $global:CSSessionObject.Version, `
+                                                    (Get-date ($global:CSSessionObject.Created) -f yyyyMMddHHmmss)
+    $sha256Hasher = New-Object System.Security.Cryptography.SHA256Managed
+    $ObjecttoHash = [System.Text.Encoding]::UTF8.GetBytes($hashFeed)
+    $hashByteArray = $sha256Hasher.ComputeHash($ObjecttoHash)
+    foreach($byte in $hashByteArray) { $resultingHash += $byte.ToString() }
+    return $resultingHash
+}
+
+############################################################################################################################
+#  New-CSConfig
+#   Returns an (empty) base xml configuration for psCloudstack
+# --------------------------------------------------------------------------------------------------------------------------
+function New-CSConfig {
+    [xml]$newCfg = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
+                    <configuration version=`"3.0`">
+                    </configuration>"
+    return $newCfg
+}
+
 ############################################################################################################################
 #  Get-APIWebRequest
 #   Build the api call signature based upon the command & secret key
@@ -1008,7 +1142,7 @@ function Get-APIWebRequest {
 
     
  .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : V3.2.2
     Function Name  : Get-APIWebRequest
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -1025,12 +1159,12 @@ param([parameter(Mandatory = $true)][PSObject]$InputObject)
     #  Build the base URL - part 1
     # ----------------------------------------------------------------------------------------------------------------------
     if ($InputObject.UseSSL) {
-        Write-Verbose "Secured web request for api call: $($Connect.Command)"
+        Write-Verbose "Secured web request for api call: $($InputObject.Command)"
         $Protocol = "https"
         $Port     = $InputObject.SecurePort
     }
     else {
-        Write-Verbose "Unsecured web request for api call: $($Connect.Command)"
+        Write-Verbose "Unsecured web request for api call: $($InputObject.Command)"
         $Protocol = "http"
         $Port     = $InputObject.UnsecurePort
     }
@@ -1077,23 +1211,19 @@ function Get-ApiSignature {
  .Parameter Command
     The command to create the signature for.
 
- .Parameter Key
-    The users secret key.
-
  .Outputs
     Signature string
 
     
  .Notes
-    psCloudstack   : V3.2.1
+    psCloudstack   : V3.2.2
     Function Name  : Get-ApiSignature
     Author         : Hans van Veen
     Requires       : PowerShell V3
 
 #>
 [CmdletBinding()]
-param([parameter(Mandatory = $true)][string]$Command,
-      [Parameter(Mandatory = $true)][string]$Key)
+param([Parameter(Mandatory = $true)][string]$Command, [Parameter(Mandatory = $true)][string]$Key)
     $bndPrm = $PSBoundParameters
     if ($bndPrm.Verbose) { $VerbosePreference = "Continue"; $doVerbose = $true } else { $VerbosePreference = "SilentlyContinue"; $doVerbose = $false }
     if ($bndPrm.Debug)   { $DebugPreference   = "Continue"; $doDebug   = $true } else { $DebugPreference   = "SilentlyContinue"; $doDebug   = $false }
@@ -1112,15 +1242,4 @@ param([parameter(Mandatory = $true)][string]$Command,
     $apiSignature = [System.Web.HttpUtility]::UrlEncode([System.Convert]::ToBase64String($cryptBytes))
     Write-Verbose "Signature: $apiSignature"
     return $apiSignature
-}
-
-############################################################################################################################
-#  Get-NewConfig
-#   returns an (empty) base xml configuration for psCloudstack
-# --------------------------------------------------------------------------------------------------------------------------
-function Get-NewConfig {
-    [xml]$newCfg = "<?xml version=`"1.0`" encoding=`"utf-8`"?>
-                    <configuration version=`"3.0`">
-                    </configuration>"
-    return $newCfg
 }
