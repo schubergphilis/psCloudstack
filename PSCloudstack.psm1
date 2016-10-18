@@ -209,11 +209,11 @@ param([parameter(Mandatory = $false)][string[]]$Zone = "Default",
     # ----------------------------------------------------------------------------------------------------------------------
     if (!$All -and ($Zone.Count -eq 1))
     {
-        if ($global:CSSessionObject -eq $null) { New-CSSessionObject }
-        Set-CSSessionObject -csObject   $cfgObject
-        Set-CSSessionObject -ApiKey     $dataSet.authentication.api
-        Set-CSSessionObject -Secret     $dataSet.authentication.key
-        Set-CSSessionObject -ConfigFile $ConfigFile
+        if ($global:pscsSessionObject -eq $null) { New-pscsSessionObject }
+        Set-pscsSessionObject -csObject   $cfgObject
+        Set-pscsSessionObject -ApiKey     $dataSet.authentication.api
+        Set-pscsSessionObject -Secret     $dataSet.authentication.key
+        Set-pscsSessionObject -ConfigFile $ConfigFile
     }
     # ======================================================================================================================
 }
@@ -531,26 +531,22 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
     # ======================================================================================================================
     #   If needed, create a new session object and load the config file details into it
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($global:CSSessionObject -eq $Null)
+    if ($global:pscsSessionObject -eq $Null)
     {
-        New-CSSessionObject
-        Set-CSSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
-        Set-CSSessionObject -ConfigFile $ConfigFile
+        New-pscsSessionObject
+        Set-pscsSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
+        Set-pscsSessionObject -ConfigFile $ConfigFile
     }
-    # ======================================================================================================================
-    #  Clone the connection details from the session objec.
-    # ----------------------------------------------------------------------------------------------------------------------
-    Write-Verbose "Connecting to $Server in zone $global:CSSessionObject.Zone"
-    $Connect = $global:CSSessionObject.PsObject.Copy()
     # ======================================================================================================================
     #  Use the Invoke-CSApiCall with the listVirtualMachines api function to verify the existance of the specified VM
     # ----------------------------------------------------------------------------------------------------------------------
     try   { $lvmInfo = (Invoke-CSApiCall -Command listVirtualMachines -Parameters "name=$($Server.ToLower())" -Verbose:$doVerbose).listvirtualmachinesresponse.virtualmachine } 
     catch { Write-Warning "Specified VM does not exist"; break }
-    if ($lvmInfo -eq $null) { Write-Warning "Specified VM does not exist in zone $($global:CSSessionObject.Zone)"; break }
+    if ($lvmInfo -eq $null) { Write-Warning "Specified VM does not exist in zone $($global:pscsSessionObject.Zone)"; break }
     # ======================================================================================================================
-    #  Add extra items to the Connect object
+    #  Clone the session object and add extra items to it
     # ----------------------------------------------------------------------------------------------------------------------
+    $Connect = $global:pscsSessionObject.psobject.Copy()
     $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Type       -Value "console"
     $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Command    -Value "cmd=access"
     $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Parameters -Value ("vm={0}" -f $lvmInfo.Id)
@@ -559,6 +555,7 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
     #  Build a signed api call (URL Query String) using the details provided. Beware: Base64 does not deliver a string
     #  which complies with the URL encoding standard!
     # ----------------------------------------------------------------------------------------------------------------------
+    Write-Verbose "Connecting to $Server in zone $Connect.Zone"
     $csUrl = Get-APIWebRequest -InputObject $Connect -Verbose:$doVerbose -Debug:$doDebug
     if ($doVerbose) { Write-Verbose "POST $csUrl" }
     Start-Process "$csUrl"
@@ -640,25 +637,25 @@ param([Parameter(Mandatory = $false)][string]$Zone = "Default",
     # ======================================================================================================================
     #   Create a new session object and load the config file details into it
     # ----------------------------------------------------------------------------------------------------------------------
-    New-CSSessionObject
-    Set-CSSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
-    Set-CSSessionObject -ConfigFile $ConfigFile
+    New-pscsSessionObject
+    Set-pscsSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
+    Set-pscsSessionObject -ConfigFile $ConfigFile
     # ======================================================================================================================
     #   Use the session object content to start a new psCloudstack session
     # ----------------------------------------------------------------------------------------------------------------------
-    if (!$Silent) { Write-Host -f yellow ("Welcome to psCloudstack V{0}, ..." -f $global:CSSessionObject.Version) }
+    if (!$Silent) { Write-Host -f yellow ("Welcome to psCloudstack V{0}, ..." -f $global:pscsSessionObject.Version) }
     # ======================================================================================================================
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # ----------------------------------------------------------------------------------------------------------------------
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
     if ($laRSP.success -eq "false") { return $laRSP }
-    $csUser = (Invoke-CSApiCall listUsers -Format xml).listusersresponse.user|? apikey -eq $global:CSSessionObject.Api
+    $csUser = (Invoke-CSApiCall listUsers -Format xml).listusersresponse.user|? apikey -eq $global:pscsSessionObject.Api
     $csParent = (Invoke-CSApiCall -Command listDomains -Parameters id=$($csUser.domainid) -Format XML).listdomainsresponse.domain.parentdomainname
     $csRole = "Domain Admin"
     if ($laRSP.Count -lt 400) { $csRole = "User" }
     if ($laRSP.Count -gt 500) { $csRole = "Root Admin" }
     if (!$Silent) { Write-Host -f yellow "You are connected as $csRole $($csUser.Username) to domain $csParent/$($csUser.domain)" }
-    Write-Verbose "Collecting api function details for $($global:CSSessionObject.Zone)"
+    Write-Verbose "Collecting api function details for $($global:pscsSessionObject.Zone)"
     $apiCnt = 0
     $global:pscLR = @{}
     foreach ($api in $laRSP.api)
@@ -731,7 +728,7 @@ function global:$apiName {
 
 
  .Notes
-    psCloudstack   : $($global:CSSessionObject.Version)
+    psCloudstack   : $($global:pscsSessionObject.Version)
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -758,11 +755,11 @@ param($prmList)
     # ======================================================================================================================
     #  Verify the active session object. Reload psCloudstack if it has been tampered with
     # ----------------------------------------------------------------------------------------------------------------------
-    if (`$CSSessionObject.Secret -ne (Get-CSSessionObjectHash))
+    if (`$pscsSessionObject.Secret -ne (Get-pscsSessionObjectHash))
     {
         Write-Warning "Invalid session object detected, reloading psCloudstack...."
         Import-Module -Name  psCloudstack -Force -ea SilentlyContinue
-        rv -Name CSSessionObject -Scope Global
+        rv -Name pscsSessionObject -Scope Global
         Connect-CSManager
         Return
     }
@@ -980,7 +977,7 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
     # ======================================================================================================================
     #  Clone the connection details from the session objec.
     # ----------------------------------------------------------------------------------------------------------------------
-    $Connect = $global:CSSessionObject.PsObject.Copy()
+    $Connect = $global:pscsSessionObject.psobject.Copy()
     # ======================================================================================================================
     #  Use the config details to see whether there are overrides....
     # ----------------------------------------------------------------------------------------------------------------------
@@ -1016,30 +1013,30 @@ param([parameter(Mandatory = $true,ValueFromPipeline=$true)][string]$Command,
 ############################################################################################################################
 ####                                      Internal-Only (Non-Exported) Functions                                        ####
 ############################################################################################################################
-#  New-CSSessionObject
-#   Creates an (empty) CSSessionObject for psCloudstack This object is essential to all psCloudstack functions!
+#  New-pscsSessionObject
+#   Creates an (empty) pscsSessionObject for psCloudstack This object is essential to all psCloudstack functions!
 # --------------------------------------------------------------------------------------------------------------------------
-function New-CSSessionObject {
-    if ($global:CSSessionObject -ne $null) { rv -Name CSSessionObject -Scope Global -Force}
-    $global:CSSessionObject = New-Object -TypeName PSObject
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Created      -Value (Get-Date)
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Version      -Value "3.2.2"
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Secret       -Value $Null
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Zone         -Value $Null
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Server       -Value $Null
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name SecurePort   -Value $Null
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UnsecurePort -Value $Null
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Api          -Value $Null
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Key          -Value $Null
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UseSSL       -Value $Null
-    $global:CSSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name ConfigFile   -Value $Null
+function New-pscsSessionObject {
+    if ($global:pscsSessionObject -ne $null) { rv -Name pscsSessionObject -Scope Global -Force}
+    $global:pscsSessionObject = New-Object -TypeName PSObject
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Created      -Value (Get-Date)
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Version      -Value "3.2.2"
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Secret       -Value $Null
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Zone         -Value $Null
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Server       -Value $Null
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name SecurePort   -Value $Null
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UnsecurePort -Value $Null
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Api          -Value $Null
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Key          -Value $Null
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name UseSSL       -Value $Null
+    $global:pscsSessionObject|Add-Member NoteProperty -TypeName psCloudstack.Config -Name ConfigFile   -Value $Null
 }
 
 ############################################################################################################################
-#  Set-CSSessionObject
+#  Set-pscsSessionObject
 #   Fill the session object with active session information. The session info can be passed per item or as an object
 # --------------------------------------------------------------------------------------------------------------------------
-function Set-CSSessionObject {
+function Set-pscsSessionObject {
 param([parameter(Mandatory = $false)][string]$Zone = $Null,
       [parameter(Mandatory = $false)][string]$NewName = $Null,
       [parameter(Mandatory = $false)][string]$Server = $Null,
@@ -1049,61 +1046,61 @@ param([parameter(Mandatory = $false)][string]$Zone = $Null,
       [Parameter(Mandatory = $false)][string]$Secret = $Null,
       [Parameter(Mandatory = $false)][switch]$UseSSL = $Null,
       [Parameter(Mandatory = $false)][string]$ConfigFile = $Null,
-      [Parameter(Mandatory = $false)][psObject]$csObject = $Null)
+      [Parameter(Mandatory = $false)][psobject]$csObject = $Null)
     # ======================================================================================================================
     #  No current session object yet, than create an empty one
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($global:CSSessionObject -eq $null) { New-CSSessionObject }
+    if ($global:pscsSessionObject -eq $null) { New-pscsSessionObject }
     # ======================================================================================================================
     #  Update the session object with the commandline/parameter content
     # ----------------------------------------------------------------------------------------------------------------------
     if ($csObject)
     {
-        if ($csObject.Zone)         { $global:CSSessionObject.Zone         = $csObject.Zone }
-        if ($csObject.Server)       { $global:CSSessionObject.Server       = $csObject.Server }
-        if ($csObject.SecurePort)   { $global:CSSessionObject.SecurePort   = $csObject.SecurePort }
-        if ($csObject.UnsecurePort) { $global:CSSessionObject.UnsecurePort = $csObject.UnsecurePort }
-        if ($csObject.Api)          { $global:CSSessionObject.Api          = $csObject.Api }
-        if ($csObject.Key)          { $global:CSSessionObject.Key          = $csObject.Key }
-        if ($csObject.UseSSL)       { $global:CSSessionObject.UseSSL       = $csObject.UseSSL }
-        if ($csObject.ConfigFile)   { $global:CSSessionObject.ConfigFile   = $csObject.ConfigFile }
+        if ($csObject.Zone)         { $global:pscsSessionObject.Zone         = $csObject.Zone }
+        if ($csObject.Server)       { $global:pscsSessionObject.Server       = $csObject.Server }
+        if ($csObject.SecurePort)   { $global:pscsSessionObject.SecurePort   = $csObject.SecurePort }
+        if ($csObject.UnsecurePort) { $global:pscsSessionObject.UnsecurePort = $csObject.UnsecurePort }
+        if ($csObject.Api)          { $global:pscsSessionObject.Api          = $csObject.Api }
+        if ($csObject.Key)          { $global:pscsSessionObject.Key          = $csObject.Key }
+        if ($csObject.UseSSL)       { $global:pscsSessionObject.UseSSL       = $csObject.UseSSL }
+        if ($csObject.ConfigFile)   { $global:pscsSessionObject.ConfigFile   = $csObject.ConfigFile }
     }
     else
     {
-        if ($Zone)                  { $global:CSSessionObject.Zone         = $Zone }
-        if ($Server)                { $global:CSSessionObject.Server       = $Server }
-        if ($SecurePort)            { $global:CSSessionObject.SecurePort   = $SecurePort }
-        if ($UnsecurePort)          { $global:CSSessionObject.UnsecurePort = $UnsecurePort }
-        if ($ApiKey)                { $global:CSSessionObject.Api          = $ApiKey }
-        if ($Secret)                { $global:CSSessionObject.Key          = $Secret }
-        if ($UseSSL)                { $global:CSSessionObject.UseSSL       = $UseSSL }
-        if ($ConfigFile)            { $global:CSSessionObject.ConfigFile   = $ConfigFile }
+        if ($Zone)                  { $global:pscsSessionObject.Zone         = $Zone }
+        if ($Server)                { $global:pscsSessionObject.Server       = $Server }
+        if ($SecurePort)            { $global:pscsSessionObject.SecurePort   = $SecurePort }
+        if ($UnsecurePort)          { $global:pscsSessionObject.UnsecurePort = $UnsecurePort }
+        if ($ApiKey)                { $global:pscsSessionObject.Api          = $ApiKey }
+        if ($Secret)                { $global:pscsSessionObject.Key          = $Secret }
+        if ($UseSSL)                { $global:pscsSessionObject.UseSSL       = $UseSSL }
+        if ($ConfigFile)            { $global:pscsSessionObject.ConfigFile   = $ConfigFile }
     }
     # ======================================================================================================================
     #  Finally add a hash value to the object which can be used to secure/verify the object content
     # ----------------------------------------------------------------------------------------------------------------------
-    $global:CSSessionObject.Secret = Get-CSSessionObjectHash
+    $global:pscsSessionObject.Secret = Get-pscsSessionObjectHash
     return
 }
 
 ############################################################################################################################
-#  Get-CSSessionObjectHash
-#   Creates a hash using the active CSSessionObject
+#  Get-pscsSessionObjectHash
+#   Creates a hash using the active pscsSessionObject
 # --------------------------------------------------------------------------------------------------------------------------
-function Get-CSSessionObjectHash
+function Get-pscsSessionObjectHash
 {
     # ======================================================================================================================
     #  No current session object yet, than create an empty one
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($global:CSSessionObject -eq $null) { New-CSSessionObject }
+    if ($global:pscsSessionObject -eq $null) { New-pscsSessionObject }
     $resultingHash = ""; $Result = ""
     # ======================================================================================================================
     #  Create 1 long string of items in the object
     # ----------------------------------------------------------------------------------------------------------------------
-    $hashFeed = "{0}{7}{1}{5}{9}{3}{6}{2}{4}{8}" -f $global:CSSessionObject.Zone, $global:CSSessionObject.Server, $global:CSSessionObject.Api, `
-                                                    $global:CSSessionObject.Key, $global:CSSessionObject.SecurePort, $global:CSSessionObject.UnsecurePort, `
-                                                    $global:CSSessionObject.UseSSL, $global:CSSessionObject.ConfigFile, $global:CSSessionObject.Version, `
-                                                    (Get-date ($global:CSSessionObject.Created) -f yyyyMMddHHmmss)
+    $hashFeed = "{0}{7}{1}{5}{9}{3}{6}{2}{4}{8}" -f $global:pscsSessionObject.Zone, $global:pscsSessionObject.Server, $global:pscsSessionObject.Api, `
+                                                    $global:pscsSessionObject.Key, $global:pscsSessionObject.SecurePort, $global:pscsSessionObject.UnsecurePort, `
+                                                    $global:pscsSessionObject.UseSSL, $global:pscsSessionObject.ConfigFile, $global:pscsSessionObject.Version, `
+                                                    (Get-date ($global:pscsSessionObject.Created) -f yyyyMMddHHmmss)
     $sha256Hasher = New-Object System.Security.Cryptography.SHA256Managed
     $ObjecttoHash = [System.Text.Encoding]::UTF8.GetBytes($hashFeed)
     $hashByteArray = $sha256Hasher.ComputeHash($ObjecttoHash)
@@ -1149,12 +1146,14 @@ function Get-APIWebRequest {
 
 #>
 [CmdletBinding()]
-param([parameter(Mandatory = $true)][PSObject]$InputObject)
+param([parameter(Mandatory = $true)][psobject]$InputObject)
     $bndPrm = $PSBoundParameters
     if ($bndPrm.Verbose) { $VerbosePreference = "Continue"; $doVerbose = $true } else { $VerbosePreference = "SilentlyContinue"; $doVerbose = $false }
     if ($bndPrm.Debug)   { $DebugPreference   = "Continue"; $doDebug   = $true } else { $DebugPreference   = "SilentlyContinue"; $doDebug   = $false }
     if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
     if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
+    $qvReplacement = [ordered]@{ "%"="%25"; " "="%20"; "!"="%21"; "*"="%2A"; "'"="%27"; "("="%28"; ")"="%29"; ";"="%3B"; ":"="%3A"; "@"="%40"; `
+                                 "&"="%26"; "="="%3D"; "+"="%2B"; "$"="%24"; ","="%2C"; "/"="%2F"; "?"="%3F"; "#"="%23"; "["="%5B"; "]"="%5D" }
     # ======================================================================================================================
     #  Build the base URL - part 1
     # ----------------------------------------------------------------------------------------------------------------------
@@ -1177,7 +1176,7 @@ param([parameter(Mandatory = $true)][PSObject]$InputObject)
         if ($_.Length -gt 0)
         {
             $prmName,$prmVal = $_ -Split "=",2
-            $prmVal = ([System.Web.HttpUtility]::UrlEncode($prmVal)).Replace("&","%26").Replace("+","%2B")
+            foreach ($qvk in $qvReplacement.keys) { $prmVal = $prmVal.Replace($qvk,$qvReplacement[$qvk]) }
             $queryString += ("&{0}={1}" -f $prmName, $prmVal)
         }
     }
