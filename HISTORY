@@ -84,11 +84,25 @@ Besides; you know best (I hope) what to do with the completion status informatio
 
 ####V3.2.1####
 A lot of small and bigger things.
-Bug fixes: The Secure/Unsecure (http/https) selection was not correct. You could choose http but were still directed to https
-New functionality: Start-CSConsoleSession to start a console session with the cloud VM of your choice. No need to use Connect-CSMAnager first,
-as long as the the VM exists in the used zone the console will pop up
-Simplified/streamlined some code. Both Invoke-CSApiCall and Start-CSConsoleSession use the same logic to build the connection URL.
-This code is now isolated in the form of an internal function.
+- Bug Fix:
+  Bug Reported by: James Richards <james.richards@citrix.com>
+  The Secure/Unsecure (http/https) selection was not correct. You could choose http but were still directed to https
+- New Functionality:
+  Start-CSConsoleSession to start a console session with the cloud VM of your choice. No need to use Connect-CSManager first,
+  as long as the the VM exists in the specified zone the console will pop up
+- Code Changes:
+  Simplified/streamlined some code. Both Invoke-CSApiCall and Start-CSConsoleSession use the same logic to build the connection URL.
+  This code is now isolated in the form of an internal function.
+
+####V3.3.0####
+- Bug Fix:
+  Bug Reported by: Maurico Schaepers (https://github.com/mschaepers)
+  psCloudstack uses [System.Web.HttpUtility]::UrlEncode for normalizing URL's and this sometimes causes problems for values passed to Cloudstack.
+  This method has been replaced with a tailor made method to prevent the erroneous behavior
+- Code changes
+  Every execution of a psCloudstack function would result in 1 or more reloads of the configuration file. The file is now only read once and its
+  content is saved in a (secured) memory object.
+
 
 Kind Regards,
 Hans van Veen
