@@ -529,7 +529,7 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
     if ($bndPrm.ErrorAction -ne $null)   { $ErrorActionPreference = $bndPrm.ErrorAction }
     if ($bndPrm.WarningAction -ne $null) { $WarningPreference     = $bndPrm.WarningAction }
     # ======================================================================================================================
-    #   If needed, create a new session object and load the config file details into it
+    #  If needed, create a new session object and load the config file details into it.
     # ----------------------------------------------------------------------------------------------------------------------
     if ($global:pscsSessionObject -eq $Null)
     {
@@ -537,6 +537,12 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
         Set-pscsSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
         Set-pscsSessionObject -ConfigFile $ConfigFile
     }
+    # ======================================================================================================================
+    #  Copy the session object to local storage and verify whether it has to be updated with info of a different zone
+    #  and/or a different config file. Leave the session object unchanged!
+    # ----------------------------------------------------------------------------------------------------------------------
+    $Connect = $global:pscsSessionObject.psobject.Copy()
+    if (($Zone -ne $Connect.Zone) -or ($ConfigFile -ne $Connect.ConfigFile)) { $Connect = Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile }
     # ======================================================================================================================
     #  Use the Invoke-CSApiCall with the listVirtualMachines api function to verify the existance of the specified VM
     # ----------------------------------------------------------------------------------------------------------------------
@@ -546,7 +552,6 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
     # ======================================================================================================================
     #  Clone the session object and add extra items to it
     # ----------------------------------------------------------------------------------------------------------------------
-    $Connect = $global:pscsSessionObject.psobject.Copy()
     $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Type       -Value "console"
     $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Command    -Value "cmd=access"
     $Connect|Add-Member NoteProperty -TypeName psCloudstack.Config -Name Parameters -Value ("vm={0}" -f $lvmInfo.Id)
@@ -635,27 +640,41 @@ param([Parameter(Mandatory = $false)][string]$Zone = "Default",
     $trnTable  = @{ "boolean" = "switch" ; "date"  = "string" ; "integer" = "int32"  ; "list" = "string[]" ; "long"   = "int64" ;
                     "map"     = "string" ; "short" = "int16"  ; "string"  = "string" ; "uuid" = "string"   ; "tzdate" = "string" }
     # ======================================================================================================================
-    #   Create a new session object and load the config file details into it
+    #  If needed, create a new session object and load the config file details into it.
     # ----------------------------------------------------------------------------------------------------------------------
-    New-pscsSessionObject
-    Set-pscsSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
-    Set-pscsSessionObject -ConfigFile $ConfigFile
+    if ($global:pscsSessionObject -eq $Null)
+    {
+        New-pscsSessionObject
+        Set-pscsSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
+        Set-pscsSessionObject -ConfigFile $ConfigFile
+    }
     # ======================================================================================================================
-    #   Use the session object content to start a new psCloudstack session
+    #  Copy the session object to local storage and verify whether it has to be updated with info of a different zone
+    #  and/or a different config file. Also update the session object!
     # ----------------------------------------------------------------------------------------------------------------------
-    if (!$Silent) { Write-Host -f yellow ("Welcome to psCloudstack V{0}, ..." -f $global:pscsSessionObject.Version) }
+    $Connect = $global:pscsSessionObject.psobject.Copy()
+    if (($Zone -ne $Connect.Zone) -or ($ConfigFile -ne $Connect.ConfigFile))
+    {
+        $Connect = Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile
+        Set-pscsSessionObject -csObject $Connect
+        Set-pscsSessionObject -ConfigFile $ConfigFile
+    }
+    # ======================================================================================================================
+    #   Write the welcome message (can only be done when the session object is present)
+    # ----------------------------------------------------------------------------------------------------------------------
+    if (!$Silent) { Write-Host -f yellow ("Welcome to psCloudstack V{0}, ..." -f $Connect.Version) }
     # ======================================================================================================================
     #   Get a list of all available api's and convert them into regular Powershell functions. Including embedded help!
     # ----------------------------------------------------------------------------------------------------------------------
     $laRSP = (Invoke-CSApiCall listApis -Format XML -Verbose:$false).listapisresponse
     if ($laRSP.success -eq "false") { return $laRSP }
-    $csUser = (Invoke-CSApiCall listUsers -Format xml).listusersresponse.user|? apikey -eq $global:pscsSessionObject.Api
+    $csUser = (Invoke-CSApiCall listUsers -Format xml).listusersresponse.user|? apikey -eq $Connect.Api
     $csParent = (Invoke-CSApiCall -Command listDomains -Parameters id=$($csUser.domainid) -Format XML).listdomainsresponse.domain.parentdomainname
     $csRole = "Domain Admin"
     if ($laRSP.Count -lt 400) { $csRole = "User" }
     if ($laRSP.Count -gt 500) { $csRole = "Root Admin" }
     if (!$Silent) { Write-Host -f yellow "You are connected as $csRole $($csUser.Username) to domain $csParent/$($csUser.domain)" }
-    Write-Verbose "Collecting api function details for $($global:pscsSessionObject.Zone)"
+    Write-Verbose "Collecting api function details for $($Connect.Zone)"
     $apiCnt = 0
     $global:pscLR = @{}
     foreach ($api in $laRSP.api)
@@ -728,7 +747,7 @@ function global:$apiName {
 
 
  .Notes
-    psCloudstack   : $($global:pscsSessionObject.Version)
+    psCloudstack   : $($Connect.Version)
     Function Name  : $apiName
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -1037,6 +1056,7 @@ function New-pscsSessionObject {
 #   Fill the session object with active session information. The session info can be passed per item or as an object
 # --------------------------------------------------------------------------------------------------------------------------
 function Set-pscsSessionObject {
+[CmdletBinding()]
 param([parameter(Mandatory = $false)][string]$Zone = $Null,
       [parameter(Mandatory = $false)][string]$NewName = $Null,
       [parameter(Mandatory = $false)][string]$Server = $Null,
@@ -1047,6 +1067,7 @@ param([parameter(Mandatory = $false)][string]$Zone = $Null,
       [Parameter(Mandatory = $false)][switch]$UseSSL = $Null,
       [Parameter(Mandatory = $false)][string]$ConfigFile = $Null,
       [Parameter(Mandatory = $false)][psobject]$csObject = $Null)
+    $bndPrm = $PSBoundParameters
     # ======================================================================================================================
     #  No current session object yet, than create an empty one
     # ----------------------------------------------------------------------------------------------------------------------
@@ -1054,28 +1075,15 @@ param([parameter(Mandatory = $false)][string]$Zone = $Null,
     # ======================================================================================================================
     #  Update the session object with the commandline/parameter content
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($csObject)
-    {
-        if ($csObject.Zone)         { $global:pscsSessionObject.Zone         = $csObject.Zone }
-        if ($csObject.Server)       { $global:pscsSessionObject.Server       = $csObject.Server }
-        if ($csObject.SecurePort)   { $global:pscsSessionObject.SecurePort   = $csObject.SecurePort }
-        if ($csObject.UnsecurePort) { $global:pscsSessionObject.UnsecurePort = $csObject.UnsecurePort }
-        if ($csObject.Api)          { $global:pscsSessionObject.Api          = $csObject.Api }
-        if ($csObject.Key)          { $global:pscsSessionObject.Key          = $csObject.Key }
-        if ($csObject.UseSSL)       { $global:pscsSessionObject.UseSSL       = $csObject.UseSSL }
-        if ($csObject.ConfigFile)   { $global:pscsSessionObject.ConfigFile   = $csObject.ConfigFile }
-    }
-    else
-    {
-        if ($Zone)                  { $global:pscsSessionObject.Zone         = $Zone }
-        if ($Server)                { $global:pscsSessionObject.Server       = $Server }
-        if ($SecurePort)            { $global:pscsSessionObject.SecurePort   = $SecurePort }
-        if ($UnsecurePort)          { $global:pscsSessionObject.UnsecurePort = $UnsecurePort }
-        if ($ApiKey)                { $global:pscsSessionObject.Api          = $ApiKey }
-        if ($Secret)                { $global:pscsSessionObject.Key          = $Secret }
-        if ($UseSSL)                { $global:pscsSessionObject.UseSSL       = $UseSSL }
-        if ($ConfigFile)            { $global:pscsSessionObject.ConfigFile   = $ConfigFile }
-    }
+    if (!$csObject) { $csObject = $bndPrm }
+    if ($csObject.Zone)         { $global:pscsSessionObject.Zone         = $csObject.Zone }
+    if ($csObject.Server)       { $global:pscsSessionObject.Server       = $csObject.Server }
+    if ($csObject.SecurePort)   { $global:pscsSessionObject.SecurePort   = $csObject.SecurePort }
+    if ($csObject.UnsecurePort) { $global:pscsSessionObject.UnsecurePort = $csObject.UnsecurePort }
+    if ($csObject.Api)          { $global:pscsSessionObject.Api          = $csObject.Api }
+    if ($csObject.Key)          { $global:pscsSessionObject.Key          = $csObject.Key }
+    if ($csObject.UseSSL)       { $global:pscsSessionObject.UseSSL       = $csObject.UseSSL }
+    if ($csObject.ConfigFile)   { $global:pscsSessionObject.ConfigFile   = $csObject.ConfigFile }
     # ======================================================================================================================
     #  Finally add a hash value to the object which can be used to secure/verify the object content
     # ----------------------------------------------------------------------------------------------------------------------
