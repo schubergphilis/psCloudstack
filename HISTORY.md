@@ -103,6 +103,10 @@ A lot of small and bigger things.
   Every execution of a psCloudstack function would result in 1 or more reloads of the configuration file. The file is now only read once and its
   content is saved in a (secured) memory object.
 
+####V3.3.1####
+- Code Change: Start-CSConsoleSession
+  Open the console browser window is a minimal as possible window. This is done for IExplorer, Mozzila/Firefox and Chrome.
+  If the default browser is not recognized Start-CSConsoleSession will use IExplorer.
 
 Kind Regards,
 Hans van Veen

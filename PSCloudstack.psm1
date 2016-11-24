@@ -15,7 +15,7 @@
 #         limitations under the License.
 #
 ############################################################################################################################
-$pscsVersion       = "3.3.0"
+$pscsVersion       = "3.3.1"
 $defaultZone       = "Default"
 $defaultConfigFile = "{0}\psCloudstack.config" -f $env:LocalAppData
 ############################################################################################################################
@@ -70,7 +70,7 @@ function Set-CSConfig
 
     
  .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -160,7 +160,7 @@ function Get-CSConfig
     - Key              The user secret key (when requested)
     
  .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -260,7 +260,7 @@ function Add-CSConfig
     None
     
  .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Add-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -341,7 +341,7 @@ function Remove-CSConfig
     None
     
  .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Remove-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -412,7 +412,7 @@ function Convert-CSConfig
     None
     
  .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Convert-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -510,7 +510,7 @@ function Start-CSConsoleSession
     C:\PS> Start-CSConsoleSession -Server Monkey -Zone Zoo
     
   .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Start-CSConsoleSession
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -561,13 +561,25 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
     $Connect.Parameters = ("vm={0}" -f $lvmInfo.Id)
     $Connect.Format     = "XML"
     # ======================================================================================================================
+    #  Find the default browser and prepare it for application mode (aka minimal browser window)
+    #  'Supported' browsers are IE, Chrome & Mozilla/FireFox with IE being the default
+    # ----------------------------------------------------------------------------------------------------------------------
+    New-PSDrive -Name HKCR -PSProvider registry -Root Hkey_Classes_Root | Out-Null
+    $browser = ((Get-ItemProperty "HKCR:\http\shell\open\command")."(default)").ToLower().Split('"')[1]
+    switch ($browser.split("\")[-1]) {
+      "chrome.exe"    { $browserCmd = '. $browser --force-app-mode --app=$csUrl'; break; }
+      "firefox.exe"   { $browserCmd = '. $browser -width 1064 -height 900 -new-window $csUrl'; break; }
+      "mozilla.exe"   { $browserCmd = '. $browser -browser -width 1064 -height 900 -new-window $csUrl'; break; }
+      default         { $ie = new-object -com "InternetExplorer.Application"; $browserCmd = '$ie.Navigate($csUrl)' }
+      }
+    # ======================================================================================================================
     #  Build a signed api call (URL Query String) using the details provided. Beware: Base64 does not deliver a string
     #  which complies with the URL encoding standard!
     # ----------------------------------------------------------------------------------------------------------------------
     Write-Verbose "Connecting to $Server in zone $Connect.Zone"
     $csUrl = Get-APIWebRequest -InputObject $Connect -Verbose:$doVerbose -Debug:$doDebug
     if ($doVerbose) { Write-Verbose "POST $csUrl" }
-    Start-Process "$csUrl"
+    iex $browserCmd
     if ($contextSwitch) { Write-Verbose "Context switch back to zone $($global:pscsSessionObject.Zone)" }
     # ======================================================================================================================
     #  Console has been started (or not). Exit
@@ -615,7 +627,7 @@ function Connect-CSManager
  .Example
     # Connect and create the api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V3.3.0 - Generating 458 api functions for you
+    Welcome to psCloudstack V3.3.1 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -624,7 +636,7 @@ function Connect-CSManager
     accounttype         : ..........................
     
   .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -961,7 +973,7 @@ function Invoke-CSApiCall
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -1162,7 +1174,7 @@ function Get-APIWebRequest
 
     
  .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Get-APIWebRequest
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -1239,7 +1251,7 @@ function Get-ApiSignature
 
     
  .Notes
-    psCloudstack   : V3.3.0
+    psCloudstack   : V3.3.1
     Function Name  : Get-ApiSignature
     Author         : Hans van Veen
     Requires       : PowerShell V3
