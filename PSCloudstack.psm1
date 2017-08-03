@@ -15,9 +15,11 @@
 #         limitations under the License.
 #
 ############################################################################################################################
-$pscsVersion       = "3.3.1"
-$defaultZone       = "Default"
-$defaultConfigFile = "{0}\psCloudstack.config" -f $env:LocalAppData
+$pscsVersion         = "3.3.2"
+$defaultZone         = "Default"
+$defaultConfigFile   = "{0}\psCloudstack.config" -f $env:LocalAppData
+$defaultUnsecurePort = 80
+$defaultSecurePort   = 443
 ############################################################################################################################
 #  Set-CSConfig
 #    Updates parts of a zone connection configuration
@@ -70,7 +72,7 @@ function Set-CSConfig
 
     
  .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -80,8 +82,8 @@ function Set-CSConfig
 param([parameter(Mandatory = $true)][string]$Zone,
       [parameter(Mandatory = $false)][string]$NewName,
       [parameter(Mandatory = $false)][string]$Server,
-      [Parameter(Mandatory = $false)][int]$SecurePort,
-      [Parameter(Mandatory = $false)][int]$UnsecurePort,
+      [Parameter(Mandatory = $false)][int]$SecurePort = $defaultSecurePort,
+      [Parameter(Mandatory = $false)][int]$UnsecurePort = $defaultUnsecurePort,
       [Parameter(Mandatory = $false)][string]$Apikey,
       [Parameter(Mandatory = $false)][string]$Secret,
       [Parameter(Mandatory = $false)][switch]$UseSSL,
@@ -160,7 +162,7 @@ function Get-CSConfig
     - Key              The user secret key (when requested)
     
  .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -185,11 +187,12 @@ param([parameter(Mandatory = $false)][string[]]$Zone = $defaultZone,
     # ----------------------------------------------------------------------------------------------------------------------
     Write-Verbose "Reading psCloudstack config file"
     [xml]$curCfg = gc "$ConfigFile"
-    if ($All) { $Zone = $curCfg.configuration.connect|%{ $_.Zone } }
+    [array]$curConnect = $curCfg.configuration.connect
+    if ($All) { $Zone = $curConnect|%{ $_.Zone } }
     foreach ($getZone in $Zone)
     {
-        $dataSet = $curCfg.configuration.connect|? Zone -eq $getZone
-        if (!$dataSet -and ($getZone -eq $defaultZone)) { $dataSet = $curCfg.configuration.connect[0] }
+        $dataSet = $curConnect|? Zone -eq $getZone
+        if (!$dataSet -and ($getZone -eq $defaultZone)) { $dataSet = $curConnect[0] }
         if (!$dataSet) { Write-Warning "Zone `"$getZone`" dataset not found"; continue }
         # ==================================================================================================================
         #  Per named dataset, store all requested details in the connect object and send it down the pipeline
@@ -260,7 +263,7 @@ function Add-CSConfig
     None
     
  .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Add-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -273,8 +276,8 @@ function Add-CSConfig
 [CmdletBinding()]
 param([parameter(Mandatory = $false)][string]$Zone = $defaultZone,
       [parameter(Mandatory = $true)][string]$Server,
-      [Parameter(Mandatory = $false)][int]$SecurePort = 8080,
-      [Parameter(Mandatory = $false)][int]$UnsecurePort = 8096,
+      [Parameter(Mandatory = $false)][int]$SecurePort = $defaultSecurePort,
+      [Parameter(Mandatory = $false)][int]$UnsecurePort = $defaultUnsecurePort,
       [Parameter(Mandatory = $true)][string]$Apikey,
       [Parameter(Mandatory = $true)][string]$Secret,
       [Parameter(Mandatory = $false)][switch]$UseSSL = "true",
@@ -341,7 +344,7 @@ function Remove-CSConfig
     None
     
  .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Remove-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -412,7 +415,7 @@ function Convert-CSConfig
     None
     
  .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Convert-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -510,7 +513,7 @@ function Start-CSConsoleSession
     C:\PS> Start-CSConsoleSession -Server Monkey -Zone Zoo
     
   .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Start-CSConsoleSession
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -570,7 +573,15 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
       "chrome.exe"    { $browserCmd = '. $browser --force-app-mode --app=$csUrl'; break; }
       "firefox.exe"   { $browserCmd = '. $browser -width 1064 -height 900 -new-window $csUrl'; break; }
       "mozilla.exe"   { $browserCmd = '. $browser -browser -width 1064 -height 900 -new-window $csUrl'; break; }
-      default         { $ie = new-object -com "InternetExplorer.Application"; $browserCmd = '$ie.Navigate($csUrl)' }
+      "iexplore.exe"  { $browserCmd = '$ie = New-Object -ComObject "InternetExplorer.Application";
+                                       $ie.MenuBar = $false;
+                                       $ie.AddressBar = $false;
+                                       $ie.ToolBar = 0;
+                                       $ie.Width = 1060;
+                                       $ie.Height = 850;
+                                       $ie.Navigate($csUrl);
+                                       $ie.Visible = $true' }
+      default         { $browserCmd = '. $browser $csUrl' }
       }
     # ======================================================================================================================
     #  Build a signed api call (URL Query String) using the details provided. Beware: Base64 does not deliver a string
@@ -585,6 +596,7 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
     #  Console has been started (or not). Exit
     # ----------------------------------------------------------------------------------------------------------------------
 }
+New-Alias -Name scs -value Start-CSConsoleSession -Description "Start a Cloudstack console session" -Option ReadOnly -Scope Global
 
 ############################################################################################################################
 #  Connect-CSManager
@@ -627,7 +639,7 @@ function Connect-CSManager
  .Example
     # Connect and create the api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V3.3.1 - Generating 458 api functions for you
+    Welcome to psCloudstack V3.3.2 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -636,7 +648,7 @@ function Connect-CSManager
     accounttype         : ..........................
     
   .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -658,14 +670,11 @@ param([Parameter(Mandatory = $false)][string]$Zone = $defaultZone,
     $trnTable  = @{ "boolean" = "switch" ; "date"  = "string" ; "integer" = "int32"  ; "list" = "string[]" ; "long"   = "int64" ;
                     "map"     = "string" ; "short" = "int16"  ; "string"  = "string" ; "uuid" = "string"   ; "tzdate" = "string" }
     # ======================================================================================================================
-    #  If needed, create a new session object and load the config file details into it.
+    #  New connection request so create a new session object and load the config file details into it.
     # ----------------------------------------------------------------------------------------------------------------------
-    if ($global:pscsSessionObject -eq $Null)
-    {
-        New-pscsSessionObject
-        Set-pscsSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
-        Set-pscsSessionObject -ConfigFile $ConfigFile
-    }
+    New-pscsSessionObject
+    Set-pscsSessionObject -csObject (Get-CSConfig -ShowKeys -Zone $Zone -ConfigFile $ConfigFile)
+    Set-pscsSessionObject -ConfigFile $ConfigFile
     # ======================================================================================================================
     #  Copy the session object to local storage and verify whether it has to be updated with info of a different zone
     #  and/or a different config file. Also update the session object!
@@ -973,7 +982,7 @@ function Invoke-CSApiCall
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -1174,7 +1183,7 @@ function Get-APIWebRequest
 
     
  .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Get-APIWebRequest
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -1251,7 +1260,7 @@ function Get-ApiSignature
 
     
  .Notes
-    psCloudstack   : V3.3.1
+    psCloudstack   : V3.3.2
     Function Name  : Get-ApiSignature
     Author         : Hans van Veen
     Requires       : PowerShell V3

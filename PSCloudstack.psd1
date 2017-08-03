@@ -20,7 +20,7 @@
 ModuleToProcess = 'psCloudstack.psm1'
 
 # Version number of this module.
-ModuleVersion = '3.3.1'
+ModuleVersion = '3.3.2'
 
 # ID used to uniquely identify this module
 GUID = 'e98607bf-a84b-4453-96fc-7d791bf2e001'
@@ -83,7 +83,7 @@ CmdletsToExport = '*'
 VariablesToExport = '*'
 
 # Aliases to export from this module
-AliasesToExport = '*'
+AliasesToExport = 'scs'
 
 # List of all modules packaged with this module
 ModuleList = @()
