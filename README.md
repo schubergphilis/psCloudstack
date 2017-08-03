@@ -18,6 +18,9 @@ Coding PowerShell functions for all available Cloudstack api's.... there are mor
 ###The Base Functions###
 The psCloudstack module consists of 7 base (static) functions which form the core of psCloudstack.
 
+###Quick Start###
+Use the pscsCreateConfig.ps1 script to generate an initial configuration file. The default config file will be stored in the users AppData folder (C:\Users\`username`\AppData\Local\psCloudstack.config)
+
 #####1. Convert-CSConfig#####
     Convert-CSConfig [-ConfigFile <string>] [-Zone <string>]
 As of psCloudstack V3 there is only one configuration file: $Env:LOCALAPPDATA\psCloudstack.config (%LOCALAPPDATA%\psCloudstack.config)
