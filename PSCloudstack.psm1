@@ -15,7 +15,7 @@
 #         limitations under the License.
 #
 ############################################################################################################################
-$pscsVersion         = "3.3.2"
+$pscsVersion         = "3.4.0"
 $defaultZone         = "Default"
 $defaultConfigFile   = "{0}\psCloudstack.config" -f $env:LocalAppData
 $defaultUnsecurePort = 80
@@ -72,7 +72,7 @@ function Set-CSConfig
 
     
  .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Set-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -162,7 +162,7 @@ function Get-CSConfig
     - Key              The user secret key (when requested)
     
  .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Get-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -263,7 +263,7 @@ function Add-CSConfig
     None
     
  .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Add-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -344,7 +344,7 @@ function Remove-CSConfig
     None
     
  .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Remove-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -415,7 +415,7 @@ function Convert-CSConfig
     None
     
  .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Convert-CSConfig
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -513,7 +513,7 @@ function Start-CSConsoleSession
     C:\PS> Start-CSConsoleSession -Server Monkey -Zone Zoo
     
   .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Start-CSConsoleSession
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -596,7 +596,7 @@ param([parameter(Mandatory = $true, Position = 0)][string]$Server,
     #  Console has been started (or not). Exit
     # ----------------------------------------------------------------------------------------------------------------------
 }
-New-Alias -Name scs -value Start-CSConsoleSession -Description "Start a Cloudstack console session" -Option ReadOnly -Scope Global
+New-Alias -Name scs -value Start-CSConsoleSession -Description "Start a Cloudstack console session" -Option ReadOnly -Scope Global -Force
 
 ############################################################################################################################
 #  Connect-CSManager
@@ -639,7 +639,7 @@ function Connect-CSManager
  .Example
     # Connect and create the api functions
     C:\PS> Connect-CSManager
-    Welcome to psCloudstack V3.3.2 - Generating 458 api functions for you
+    Welcome to psCloudstack V3.4.0 - Generating 458 api functions for you
     
     C:\PS> listUsers -listall
 
@@ -648,7 +648,7 @@ function Connect-CSManager
     accounttype         : ..........................
     
   .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Connect-CSManager
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -667,8 +667,9 @@ param([Parameter(Mandatory = $false)][string]$Zone = $defaultZone,
     #   The api parameter types differ in name from the Powershell types. Create a translation table to deal with this.
     #   Beware: The unix date format yyyy-MM-dd has no counterpart in Powershell, therefore its replaced by type string
     # ----------------------------------------------------------------------------------------------------------------------
-    $trnTable  = @{ "boolean" = "switch" ; "date"  = "string" ; "integer" = "int32"  ; "list" = "string[]" ; "long"   = "int64" ;
-                    "map"     = "string" ; "short" = "int16"  ; "string"  = "string" ; "uuid" = "string"   ; "tzdate" = "string" }
+    $trnTable  = @{ "boolean" = "switch"; "date" = "string"; "integer" = "int32"; "list" = "string[]"; "long" = "int64";
+                    "map" = "string[]"; "short" = "int16"; "string" = "string"; "uuid" = "string"; "tzdate" = "string" }
+    $csRole    = @("User","Admin","Domain Admin")
     # ======================================================================================================================
     #  New connection request so create a new session object and load the config file details into it.
     # ----------------------------------------------------------------------------------------------------------------------
@@ -699,13 +700,9 @@ param([Parameter(Mandatory = $false)][string]$Zone = $defaultZone,
     if ($laRSP.success -eq "false") { return $laRSP }
     $csUser = (Invoke-CSApiCall listUsers -Format xml).listusersresponse.user|? apikey -eq $Connect.Api
     $csParent = (Invoke-CSApiCall -Command listDomains -Parameters id=$($csUser.domainid) -Format XML).listdomainsresponse.domain.parentdomainname
-    $csRole = "Domain Admin"
-    if ($laRSP.Count -lt 400) { $csRole = "User" }
-    if ($laRSP.Count -gt 500) { $csRole = "Root Admin" }
-    if (!$Silent) { Write-Host -f yellow "You are connected as $csRole $($csUser.Username) to domain $csParent/$($csUser.domain)" }
+    if (!$Silent) { Write-Host -f yellow "You are connected as $($csRole[$csUser.AccountType]) $($csUser.Username) to domain $csParent/$($csUser.domain)" }
     Write-Verbose "Collecting api function details for $($Connect.Zone)"
     $apiCnt = 0
-    $global:pscLR = @{}
     foreach ($api in $laRSP.api)
     {
         # -------------------------------------------------------------------------------
@@ -714,16 +711,15 @@ param([Parameter(Mandatory = $false)][string]$Zone = $defaultZone,
         #  non-cloudstack parameters when building the API call
         # -------------------------------------------------------------------------------
         $apiName = $api.name; $prmList = ""; $apiCnt += 1
-        [string[]]$prmNames = $api.params.name|sort -unique
+        [string[]]$prmNames = $api.params.name|sort-object -unique
         $prmCount = $prmNames.Count; $prmCheck = ""
         if ($prmCount -gt 0) { $prmCheck = $prmNames.ToLower() -join " " }
         # -------------------------------------------------------------------------------
         #  Get all possible api responses and create a sorted list. With only 2 response
         #  values (displaytext & success) the api call result will be a boolean
         # -------------------------------------------------------------------------------
-        [string[]]$rspNames = $api.response.name|sort -unique
+        [string[]]$rspNames = $api.response.name|sort-object -unique
         $rspCount = $rspNames.Count
-        $rspBool = (($rspCount -eq 2) -and $rspNames.Contains("displaytext") -and $rspNames.Contains("success"))
         # -------------------------------------------------------------------------------
         #  Is it an asynchronous api?
         # -------------------------------------------------------------------------------
@@ -732,7 +728,7 @@ param([Parameter(Mandatory = $false)][string]$Zone = $defaultZone,
         #  Build a sorted (and pretty formatted) list of related api's 
         # -------------------------------------------------------------------------------
         $linkApi = "None"
-        if ($api.related.length -gt 0) { $linkApi  = ($api.related.Split(",")|sort -unique) -join "`r`n- " }
+        if ($api.related.length -gt 0) { $linkApi  = ($api.related.Split(",")|sort-object -unique) -join "`r`n- " }
         $asyncMark = ""; if ($asyncApi) { $asyncMark = "(A)" }
         Write-Verbose (" {0:0##} - $apiName {1}" -f $apiCnt,$asyncMark)
         # ------------------------------------------------------------------------------------------------------------------
@@ -771,7 +767,7 @@ function global:$apiName
         }
         if ($prmList -ne "") { $prmList = $prmList.TrimEnd(",`r`n      ") }
         $apiFunction += "`r`n .Outputs`r`n  System.Object`r`n"
-        foreach ($rsp in $api.response|sort name) { if ($rsp) { $apiFunction += "`r`n  - {0,-25}{1}" -f $rsp.name,$rsp.description } }
+        foreach ($rsp in $api.response|sort-object name) { if ($rsp) { $apiFunction += "`r`n  - {0,-25}{1}" -f $rsp.name,$rsp.description } }
         $apiFunction +=
 @"
 
@@ -982,7 +978,7 @@ function Invoke-CSApiCall
     An XML or JSON formatted object which contains all content output returned by the api call
     
  .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Invoke-CSApiCall
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -1183,7 +1179,7 @@ function Get-APIWebRequest
 
     
  .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Get-APIWebRequest
     Author         : Hans van Veen
     Requires       : PowerShell V3
@@ -1220,8 +1216,27 @@ param([parameter(Mandatory = $true)][psobject]$InputObject)
         if ($_.Length -gt 0)
         {
             $prmName,$prmVal = $_ -Split "=",2
-            foreach ($qvk in $qvReplacement.keys) { $prmVal = $prmVal.Replace($qvk,$qvReplacement[$qvk]) }
-            $queryString += ("&{0}={1}" -f $prmName, $prmVal)
+            if ($prmName -ne 'tags')
+            {
+                foreach ($qvk in $qvReplacement.keys) { $prmVal = $prmVal.Replace($qvk,$qvReplacement[$qvk]) }
+                $queryString += ("&{0}={1}" -f $prmName, $prmVal)
+            }
+            else
+            {
+                $tagString = ""; $tagCnt = 0
+                foreach ($kvpair in $prmVal.Split(','))
+                {
+                    $tagKey, $tagValue = $kvpair.Split('=')
+                    $tagString += "&tags[$tagCnt].key=$tagKey"
+                    if ($tagValue)
+                    {
+                        foreach ($qvk in $qvReplacement.keys) { $tagValue = $tagValue.Replace($qvk,$qvReplacement[$qvk]) }
+                        $tagString += "&tags[$tagCnt].value=$tagValue"
+                    }
+                    $tagCnt += 1
+                }
+                $queryString += $tagString
+            }
         }
     }
     Write-Verbose "Query String: $queryString"
@@ -1260,7 +1275,7 @@ function Get-ApiSignature
 
     
  .Notes
-    psCloudstack   : V3.3.2
+    psCloudstack   : V3.4.0
     Function Name  : Get-ApiSignature
     Author         : Hans van Veen
     Requires       : PowerShell V3
