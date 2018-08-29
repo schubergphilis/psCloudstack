@@ -2,18 +2,18 @@
 
 A PowerShell module which dynamically creates PowerShell functions for all (to the user) available Cloudstack api's.
 
-## Installation ##
+### Installation ###
 
 Copy **all** files to one of the following folders:
 
-```ps1
+```
 $Home\Documents\WindowsPowerShell\modules\psCloudstack (%UserProfile%\Documents\WindowsPowerShell\Modules\psCloudstack)      Private installation of psCloudstack
 $Env:ProgramFiles\WindowsPowerShell\Modules\psCloudstack (%ProgramFiles%\WindowsPowerShell\Modules\psCloudstack)               Public installation of psCloudstack
 ```
 
 Do NOT use $PSHome\Modules (%Windir%\System32\WindowsPowerShell\v1.0\Modules) This location is reserved for modules that ship with Windows.
 
-### To activate ###
+#### To activate ####
 
 Beginning in Windows PowerShell 3.0, installed modules are automatically imported to the session when you use any commands or providers in the module. However, you can still use the Import-Module command to import the psCloudstack module
 
@@ -24,10 +24,6 @@ Coding PowerShell functions for all available Cloudstack api's.... there are mor
 ### The Base Functions ###
 
 The psCloudstack module consists of 7 base (static) functions which form the core of psCloudstack.
-
-### Quick Start ###
-
-Use the pscsCreateConfig.ps1 script to generate an initial configuration file. The default config file will be stored in the users AppData folder (C:\Users\`username`\AppData\Local\psCloudstack.config)
 
 #### 1. Convert-CSConfig ####
 
@@ -74,7 +70,7 @@ Connect-CSManager uses the Cloudstack listApis api call to collect the details o
 The api name becomes the function name, the api request parameters become the function parameters and the api response tags become the output fields of the function.
 All this information is pasted into a (Here-String based) **global** function template and than executed via the Invoke-Expression command.
 
-```ps1
+```
 PS C:\> Connect-CSManager -Verbose
 VERBOSE: Collecting api function details for Default
 Welcome to psCloudstack V3.0.0, generating 266 api functions for you
@@ -103,8 +99,7 @@ Invoke-CSApiCall is used by every api function created via Connect-CSManager (wh
 
 At least the command must be specified and optional some parameters to the command. The other parameters can be used to override the settings from the active configuration file.        
 By default Invoke-CSApiCAll will return XML formatted output, but JSON is also possible using *-Format JSON*
-
-```ps1
+```
 PS> Invoke-CSApiCall -Command listZones name=Bootcamp 
 
 xml                                                               listzonesresponse

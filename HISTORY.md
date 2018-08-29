@@ -13,15 +13,14 @@ handling of the api functions, everything got handled as if it were a string, ev
 Connect-CSManager now creates a better (formatted) list of api function parameters, including mandatory and type settings. The following 'translation' 
 table is used to convert the 'Unix types' to 'PowerShell types'
 
-         | --------- | -------- |     | --------- | -------- |
-         | Unix type | PS type  |     | Unix type | PS type  |
-         | --------- | -------- |     | --------- | -------- |
-         | boolean   | switch   |     | map       | string   |
-         | date      | string   |     | short     | int16    |
-         | integer   | int32    |     | string    | string   |
-         | list      | string[] |     | uuid      | string   |
-         | long      | int64    |     | tzdate    | string   |
-         | --------- | -------- |     | --------- | -------- |
+         | --------- | -------- |     | --------- | -------- |     | --------- | -------- |
+         | Unix type | PS type  |     | Unix type | PS type  |     | Unix type | PS type  |
+         | --------- | -------- |     | --------- | -------- |     | --------- | -------- |
+         | boolean   | switch   |     | long      | int64    |     | object    | string   |
+         | date      | string   |     | short     | int16    |     | map       | string   |
+         | integer   | int32    |     | string    | string   |     | tzdate    | string   |
+         | list      | string[] |     | uuid      | string   |     |           |          |
+         | --------- | -------- |     | --------- | -------- |     | --------- | -------- |
 
 In psCloudstack the Cloudstack api boolean is replaced by a PowerShell switch parameter which takes no value at all.
 This means that; false is not specified and true when specified
@@ -32,6 +31,7 @@ A welcome message has been added to Connect-CSManager, if you find it annoying u
 
 April 14, 2014 - A rather intense update. Removed a lot of ugly code and improved sync/async code streams.
 Most important change: asynch functions now support -Wait/-NoWait
+
 - In V1.2 the Cloudstack api boolean was replaced by a PowerShell switch parameter. Some thought this to be a setback.  
   Created the possibility of using Unix style booleans again by introducing -CommandStyle [Unix|Windows] for Connect-CSManager  
   This option can also be set via the config file, in the <connect> section the line <command style="xxxxxx" /> has been added  
@@ -45,8 +45,8 @@ Most important change: asynch functions now support -Wait/-NoWait
 - Removed some old 'debug-like' lines of code.
 
 #### V2.0.1 ####
-
 Some small bugfixes;
+
 - Initialize-CSConfig now works like documented
 - Get-CSConfig does not do a implied Set-CSConfig anymore
 - Hide Invoke-WebRequest progressbar
@@ -95,6 +95,7 @@ Besides; you know best (I hope) what to do with the completion status informatio
 #### V3.2.1 ####
 
 A lot of small and bigger things.
+
 - Bug Fix:
   Bug Reported by: James Richards <james.richards@citrix.com>
   The Secure/Unsecure (http/https) selection was not correct. You could choose http but were still directed to https
@@ -121,15 +122,10 @@ A lot of small and bigger things.
   Open the console browser window is a minimal as possible window. This is done for IExplorer, Mozzila/Firefox and Chrome.
   If the default browser is not recognized Start-CSConsoleSession will use IExplorer.
 
-#### V3.4.0 ####
+#### 3.4.2 ####
 
-- Bug Fix: Tag handling
-  Tags were not handeled correctly, resulting in not being able to create or delete tags. Ths has now been fixed, and the correct way of
-  creating tags is
-
-  ```ps1
-  PS> createTags ....... -tags "name=value",......
-  ```
+- Code Change: Replace shorthand (gc, iex,...) by fullname (Get-Content, Invoke-Expression,...)
+- Bug fixes: added missing data type 'object'. Caused errors when creating/loading some bare metal functions
 
 Kind Regards,
 Hans van Veen
