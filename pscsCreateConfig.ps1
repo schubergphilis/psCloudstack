@@ -5,7 +5,7 @@ Now that the psCloudstack files are in place only one more thing needs to be don
 This file can contain multiple configurations ('zones') and each configuration consists of;
 
  - The zone name          This name is used to locate the configuration data in the file
- - Server address         The Cloudstack server url (without 'http://' or 'https://' prefix)
+ - Server address         The Cloudstack server FQDN (url without 'http://' or 'https://' prefix)
  - Secure port number     The https port number (default: 443)
  - Unsecure port number   The http port number (default: 80)
  - UseSSL                 Use https or not to connect to the Cloudstack server (Y or N)

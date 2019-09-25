@@ -1,12 +1,9 @@
-# psCloudstack Examples #
-
+#psCloudstack Examples#
 This file shows you some of the possibilities of psCloudstack.
 
-#### In the beginning there was.... ####
-
+####In the beginning there was....####
 A bare and empty PowerShell function landscape
-
-```ps1
+```
 PS C:\> ls function:
 
 CommandType     Name                                               ModuleName
@@ -20,11 +17,9 @@ Function        Y:
 Function        Z:
 ```
 
-#### Bringing psCloudstack to the surface.... ####
-
+####Bringing psCloudstack to the surface....####
 The sea of functions started to fill............
-
-```ps1
+```
 PS C:\> Import-Module psCloudstack
 PS C:\> ls function:
 
@@ -56,11 +51,9 @@ Function        Z:
 
 ```
 
-#### Creating the Cloudstack api functions.... ####
-
+####Creating the Cloudstack api functions....####
 And all was #up and running#, all entitled api functions at your feet........
-
-```ps1
+```
 PS C:\> Connect-CSManager [-Zone ...]
 PS C:\> ls function:
 
@@ -85,11 +78,9 @@ Function        Y:
 Function        Z:
 ```
 
-#### You are not alone.... ####
-
+####You are not alone....####
 Reach out for help if needed, use *Get-Help 'api-name'* to get help on the function usage, for example;
-
-```ps1
+```
 
 PS> help listZones
 
@@ -123,13 +114,12 @@ REMARKS
 ```
 
 
-### api Function Usage ###
-
+###api Function Usage###
 Use the functions like you would use any Powershell function/cmdlet. Start parameters with a "-" sign and keep a space between
 the parameter name and parameter value. All the results are returned as a single System.Object, one for each item returned.     
 Adding -Verbose to the command will display the details about/from the api call.
 
-```ps1
+```
 PS C:\> listZones -Name Bootcamp
 
 allocationstate       : Enabled
@@ -148,8 +138,7 @@ zonetoken             : 277b0fae-5b08-3a61-837a-b55475bac83b
 ```
 
 The equivalent Invoke-CSApiCall command would be:
-
-```ps1
+```
 PS> Invoke-CSApiCall listZones name=Bootcamp
 
 xml                                                               listzonesresponse
@@ -157,11 +146,9 @@ xml                                                               listzonesrespo
 version="1.0" encoding="UTF-8"                                    listzonesresponse
 ```
 
-### Using output to feed others.... ###
-
+###Using output to feed others....###
 Capture the output from one call and use it to 'feed' another api function call
-
-```ps1
+```
 PS C:\> $no = listNetworkOfferings -name DefaultIsolatedNetworkOfferingWithSourceNatService
 PS C:\> $di = listDomains -name Wayne
 PS C:\> $zi = listZones -name Bootcamp
@@ -203,13 +190,11 @@ zoneid                      : 755fba3b-a748-4458-a3d2-e149b74da94a
 zonename                    : Bootcamp
 ```
 
-### and I leave the rest to your imagination! ###
+###and I leave the rest to your imagination!###
 
-## Converting existing configuration files ##
-
+##Converting existing configuration files##
 For example 3 configuration files;
-
-```ps1
+```
 PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="2.0">
@@ -222,7 +207,7 @@ PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 PS>
 ```
 
-```ps1
+```
 PS> cat C:\Users\'username'\AppData\Local\psCloudstack-Test1.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="2.0">
@@ -235,7 +220,7 @@ PS> cat C:\Users\'username'\AppData\Local\psCloudstack-Test1.config
 PS>
 ```
 
-```ps1
+```
 PS> cat C:\Users\'username'\AppData\Local\psCloudstack-Test2.config
 <?xml version="1.0" encoding="utf-8"?>
 <configuration version="2.0">
@@ -248,9 +233,8 @@ PS> cat C:\Users\'username'\AppData\Local\psCloudstack-Test2.config
 PS>
 ```
 
-##### Step 1 - No parameters #####
-
-```ps1
+#####Step 1 - No parameters#####
+```
 PS> Convert-CSConfig -Verbose
 VERBOSE: Converting config file "C:\Users\'username'\AppData\Local\psCloudstack.config"
 VERBOSE: default psCloudstack config has been updated
@@ -265,9 +249,8 @@ PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 PS>
 ```
 
-##### Step 2 - Specify source file and connection name #####
-
-```ps1
+#####Step 2 - Specify source file and connection name#####
+```
 PS> Convert-CSConfig -ConfigFile C:\Users\'username'\AppData\Local\psCloudstack-Test1.config -Name Test1 -Verb
 VERBOSE: Converting config file "C:\Users\'username'\AppData\Local\psCloudstack-Test1.config"
 VERBOSE: Merging psCloudstack config data
@@ -287,9 +270,8 @@ PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 PS>
 ```
 
-##### Step 3- Specify source file, NO connetion name #####
-
-```ps1
+#####Step 3- Specify source file, NO connetion name#####
+```
 PS> Convert-CSConfig -ConfigFile C:\Users\'username'\AppData\Local\psCloudstack-Test2.config -Verb
 VERBOSE: Converting config file "C:\Users\'username'\AppData\Local\psCloudstack-Test2.config"
 VERBOSE: Merging psCloudstack config data
@@ -314,9 +296,8 @@ PS> cat C:\Users\'username'\AppData\Local\psCloudstack.config
 PS>
 ```
 
-##### Step 4 - Rename the Default+ connection #####
-
-```ps1
+#####Step 4 - Rename the Default+ connection#####
+```
 PS> Set-CSConfig -Name "Default+" -NewName "Test2" -Verbose
 VERBOSE: Reading psCloudstack config file
 VERBOSE: psCloudstack config has been updated
